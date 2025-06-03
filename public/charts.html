@@ -62,11 +62,12 @@
 
         function updateCharts(data) {
             const normalizedData = {
-                comPort: data.comPort || data.com_port || 'Unknown',
+                comPort: data.comPort || 'Unknown',
                 rssi: data.rssi || 0,
                 lqi: data.lqi || 0,
                 timestamp: data.timestamp || new Date().toISOString()
             };
+            
             chartData.push(normalizedData);
 
             if (chartData.length > 20) {
@@ -161,7 +162,7 @@
 
         socket.on('chartData', (data) => {
             chartData = data.map(item => ({
-                comPort: item.comPort,
+                comPort: item.com_port,
                 rssi: item.rssi,
                 lqi: item.lqi,
                 timestamp: item.timestamp
@@ -172,6 +173,7 @@
         });
 
         socket.on('newComData', (data) => {
+            console.log(data.comPort);
             updateCharts(data);
         });
     </script>
