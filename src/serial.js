@@ -19,10 +19,10 @@ async function updateComList(io) {
     const ports = await listComPorts();
 
     io.to('indexRoom').emit('comList', ports.map((p, index) => ({
-                    id: index + 1,
-                    comPort: p.path,
-                    addrIpv6: 'fe80::1'
-                })));
+        id: index + 1,
+        comPort: p.path,
+        addrIpv6: 'fe80::1'
+    })));
 }
 
 function connectToPort(path, io, clientComPorts) {
@@ -42,6 +42,9 @@ function connectToPort(path, io, clientComPorts) {
                 rawData: data
             };
             saveComData(parsedData);
+
+            // Gửi dữ liệu mới cho tất cả client để cập nhật đồ thị
+            io.to('dashboardRoom').emit('newComData', parsedData);
 
             // Gửi đến các client quan tâm đến comPort này
             for (const [socketId, comPort] of clientComPorts) {

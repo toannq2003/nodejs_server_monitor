@@ -80,4 +80,12 @@ async function getComData(comPort) {
     return rows;
 }
 
-module.exports = { saveComData, getComData };
+async function getAllComDataForCharts() {
+    const pool = await poolPromise;
+    const [rows] = await pool.execute(
+        'SELECT com_port, rssi, lqi, timestamp FROM com_data ORDER BY timestamp'
+    );
+    return rows;
+}
+
+module.exports = { saveComData, getComData, getAllComDataForCharts };

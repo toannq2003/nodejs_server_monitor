@@ -4,7 +4,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
 const { monitorPorts, sendCliCommand } = require('./serial');
-const { getComData } = require('./database');
+const { getComData, getAllComDataForCharts } = require('./database');
 
 dotenv.config();
 
@@ -23,6 +23,10 @@ app.get('/', (req, res) => {
 
 app.get('/details', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/details.html'));
+});
+
+app.get('/charts', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/charts.html'));
 });
 
 io.on('connection', socket => {
@@ -56,6 +60,11 @@ io.on('connection', socket => {
     socket.on('sendCli', ({ comPort, command }) => {
         const success = sendCliCommand(comPort, command);
         socket.emit('cliResponse', { success, comPort, command });
+    });
+
+    socket.on('requestChartData', async () => {
+        const data = await getAllComDataForCharts();
+        socket.emit('chartData', data);
     });
 
     socket.on('disconnect', () => {
