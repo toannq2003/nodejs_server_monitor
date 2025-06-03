@@ -12,15 +12,15 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Phục vụ các tệp tĩnh từ thư mục public
+// Lưu trữ thông tin comPort của mỗi client
+const clientComPorts = new Map();
+
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Route cho trang chính
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// Route cho trang chi tiết
 app.get('/details', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/details.html'));
 });
@@ -28,23 +28,31 @@ app.get('/details', (req, res) => {
 io.on('connection', socket => {
     console.log('Client connected');
 
-    // Xử lý yêu cầu danh sách cổng COM
+    socket.on('joinRoom', room => {
+        socket.join(room);
+        console.log(`Client joined room: ${room}`);
+    });
+
+    // Client đăng ký comPort mà nó quan tâm
+    socket.on('registerComPort', comPort => {
+        clientComPorts.set(socket.id, comPort);
+        console.log(`Client ${socket.id} registered for comPort: ${comPort}`);
+    });
+
     socket.on('requestComList', async () => {
         const ports = await require('./serial').listComPorts();
-        socket.emit('comList', ports.map((p, index) => ({
+        io.to('indexRoom').emit('comList', ports.map((p, index) => ({
             id: index + 1,
             comPort: p.path,
-            addrIpv6: 'fe80::1' // Thay bằng logic thực tế
+            addrIpv6: 'fe80::1'
         })));
     });
 
-    // Xử lý yêu cầu dữ liệu cổng COM
     socket.on('getComData', async comPort => {
         const data = await getComData(comPort);
         socket.emit('comDataHistory', data);
     });
 
-    // Xử lý lệnh CLI
     socket.on('sendCli', ({ comPort, command }) => {
         const success = sendCliCommand(comPort, command);
         socket.emit('cliResponse', { success, comPort, command });
@@ -52,11 +60,12 @@ io.on('connection', socket => {
 
     socket.on('disconnect', () => {
         console.log('Client disconnected');
+        clientComPorts.delete(socket.id);
     });
 });
 
-// Bắt đầu giám sát cổng COM
-monitorPorts(io);
+// Truyền io để sử dụng trong serial.js
+monitorPorts(io, clientComPorts);
 
 const PORT = process.env.SERVER_PORT || 3000;
 server.listen(PORT, process.env.SERVER_HOST, () => {

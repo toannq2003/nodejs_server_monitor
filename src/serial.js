@@ -1,9 +1,9 @@
 const { SerialPort } = require('serialport');
+const { ReadlineParser } = require('@serialport/parser-readline');
 const usbDetect = require('usb-detection');
 const { saveComData } = require('./database');
 
 const connectedPorts = new Map();
-let lastComList = []; // Lưu danh sách cổng COM trước đó
 
 async function listComPorts() {
     const ports = await SerialPort.list();
@@ -17,35 +17,40 @@ async function listComPorts() {
 
 async function updateComList(io) {
     const ports = await listComPorts();
-    const currentComList = ports.map(p => p.path).sort();
 
-    if (JSON.stringify(currentComList) !== JSON.stringify(lastComList)) {
-        lastComList = currentComList;
-        io.emit('comList', ports.map((p, index) => ({
-            id: index + 1,
-            comPort: p.path,
-            addrIpv6: 'fe80::1' // Thay bằng logic lấy IPv6 thực tế
-        })));
-        console.log('Cập nhật danh sách cổng COM:', currentComList);
-    }
+    io.to('indexRoom').emit('comList', ports.map((p, index) => ({
+                    id: index + 1,
+                    comPort: p.path,
+                    addrIpv6: 'fe80::1'
+                })));
 }
 
-function connectToPort(path, io) {
+function connectToPort(path, io, clientComPorts) {
     if (!connectedPorts.has(path)) {
         const port = new SerialPort({ path, baudRate: 9600 });
         connectedPorts.set(path, port);
 
-        port.on('data', data => {
+        const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+
+        parser.on('data', data => {
             const parsedData = {
                 comPort: path,
                 addrIpv6: 'fe80::1',
                 rssi: -50,
                 lqi: 100,
                 crc: 'OK',
-                rawData: data.toString('hex')
+                rawData: data
             };
             saveComData(parsedData);
-            io.emit('comData', parsedData);
+
+            // Gửi đến các client quan tâm đến comPort này
+            for (const [socketId, comPort] of clientComPorts) {
+                if (comPort === parsedData.comPort) {
+                    io.to(socketId).emit('comData', parsedData);
+                }
+            }
+            const buffer = Buffer.from(data);
+            console.log(buffer.toString('hex'));
         });
 
         port.on('error', err => {
@@ -57,18 +62,17 @@ function connectToPort(path, io) {
         port.on('close', () => {
             console.log(`Cổng ${path} đã đóng`);
             connectedPorts.delete(path);
-            updateComList(io);
         });
     }
 }
 
-function monitorPorts(io) {
+function monitorPorts(io, clientComPorts) {
     usbDetect.startMonitoring();
 
     usbDetect.on('add', async () => {
         console.log('Phát hiện thiết bị USB mới');
         const ports = await listComPorts();
-        ports.forEach(p => connectToPort(p.path, io));
+        ports.forEach(p => connectToPort(p.path, io, clientComPorts));
         updateComList(io);
     });
 

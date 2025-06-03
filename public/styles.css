@@ -61,6 +61,26 @@ body {
     color: #1e40af;
 }
 
+/* Table with sticky header */
+.table-sticky thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: #2563eb; /* Giữ màu nền của thead */
+}
+
+.table-sticky tbody {
+    display: block;
+    max-height: 400px; /* Chiều cao tối đa để cuộn, có thể điều chỉnh */
+    overflow-y: auto; /* Cho phép cuộn dọc */
+}
+
+.table-sticky tr {
+    display: table;
+    width: 100%;
+    box-sizing: border-box;
+}
+
 /* Form elements */
 .form-control, .form-select {
     border: 1px solid #d1d5db;
