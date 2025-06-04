@@ -83,7 +83,7 @@ async function getComData(comPort) {
 async function getAllComDataForCharts() {
     const pool = await poolPromise;
     const [rows] = await pool.execute(
-        'SELECT com_port, rssi, lqi, timestamp FROM com_data ORDER BY timestamp'
+        'SELECT com_port AS comPort, rssi, lqi, timestamp FROM com_data ORDER BY timestamp'
     );
     return rows;
 }

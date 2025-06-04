@@ -162,7 +162,7 @@
 
         socket.on('chartData', (data) => {
             chartData = data.map(item => ({
-                comPort: item.com_port,
+                comPort: item.comPort,
                 rssi: item.rssi,
                 lqi: item.lqi,
                 timestamp: item.timestamp
