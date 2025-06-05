@@ -52,8 +52,8 @@ function connectToPort(path, io, clientComPorts) {
                     io.to(socketId).emit('comData', parsedData);
                 }
             }
-            const buffer = Buffer.from(data);
-            console.log(buffer.toString('hex'));
+            
+            console.log(parsedData );
         });
 
         port.on('error', err => {
