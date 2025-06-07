@@ -133,6 +133,37 @@ code {
     border-radius: 4px;
 }
 
+/* CLI Responses */
+.cli-responses {
+    height: 200px; /* Chiều cao cố định */
+    width: 100%; /* Chiều rộng khớp với card */
+    overflow-y: auto; /* Cho phép cuộn dọc */
+    background: #f8fafc; /* Nền sáng, gần giống card nhưng nhạt hơn */
+    color: #1f2937; /* Chữ đen đậm, đồng bộ với giao diện */
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db; /* Viền nhẹ, đồng bộ với form elements */
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f8fafc; /* Thanh cuộn đồng bộ với giao diện */
+}
+
+.cli-responses::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cli-responses::-webkit-scrollbar-track {
+    background: #f8fafc;
+}
+
+.cli-responses::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 3px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .navbar-brand {
@@ -155,5 +186,11 @@ code {
 
     .btn {
         padding: 0.5rem 1rem;
+    }
+
+    .cli-responses {
+        font-size: 0.85em;
+        padding: 8px;
+        height: 150px; /* Giảm chiều cao trên mobile */
     }
 }

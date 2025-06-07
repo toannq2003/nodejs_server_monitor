@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -34,26 +34,28 @@
         </div>
     </nav>
 
-    <div class="container py-6 max-w-4xl">
+        <div class="container py-6 max-w-4xl">
         <h2 class="text-xl font-semibold mb-4 text-gray-800" data-aos="fade-up">Gửi lệnh CLI</h2>
-        <div class="card bg-white shadow-md rounded-lg mb-6" data-aos="zoom-in">
+        <div class="card bg-white shadow-lg rounded-lg mb-6" data-aos="zoom-in">
             <div class="card-body p-4">
-                <form class="flex flex-wrap gap-3 items-center">
+                <form class="flex gap-3 items-center" id="cliForm">
                     <select class="form-select bg-gray-50 text-gray-800 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 w-32" id="comSelect">
                         <option value="">Chọn COM</option>
                     </select>
-                    <input type="text" class="form-control bg-gray-50 text-gray-800 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 flex-grow" id="cliInput" placeholder="Nhập lệnh CLI">
-                    <button type="button" class="btn bg-blue-600 text-white rounded-md px-4 py-2 hover:bg-blue-700 transform hover:scale-105 transition-all" onclick="sendCli()">Gửi</button>
+                    <input type="text" class="form-control bg-gray-50 text-gray-800 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 flex-grow" id="cliCommand" placeholder="Nhập lệnh CLI">
+                    <button type="submit" class="btn bg-blue-600 text-white rounded-md w-20 h-10 hover:bg-blue-700 transform hover:scale-105 transition-all">Gửi</button>
                 </form>
-                <p class="mt-3 text-sm text-gray-600" id="cliResponse"></p>
+                <div class="cli-responses mt-3"  id="cliResponses">
+                    <!-- Phản hồi CLI sẽ được thêm vào đây -->
+                </div>
             </div>
         </div>
 
         <h2 class="text-xl font-semibold mb-4 text-gray-800" data-aos="fade-up">Danh sách cổng COM</h2>
-        <div class="card bg-white shadow-md rounded-lg" data-aos="fade-up" data-aos-delay="100">
+        <div class="card bg-white shadow-lg rounded-lg" data-aos="fade-up" data-aos-delay="100">
             <div class="card-body p-4">
                 <div class="table-responsive">
-                    <table class="table table-hover table-borderless" id="comTable">
+                    <table class="table table-hover table-sticky" id="comTable">
                         <thead class="bg-blue-600 text-white">
                             <tr>
                                 <th scope="col">ID</th>
@@ -76,12 +78,11 @@
         AOS.init({ duration: 500, once: true });
 
         const socket = io();
-        socket.emit('joinRoom', 'indexRoom');
+        const maxResponses = 50; // Giới hạn số lượng phản hồi lưu trữ
+        let cliResponses = []; // Mảng lưu trữ phản hồi CLI
 
-        // Yêu cầu danh sách cổng COM ngay khi kết nối
-        socket.on('connect', () => {
-            socket.emit('requestComList');
-        });
+        socket.emit('joinRoom', 'indexRoom');
+        socket.emit('requestComList');
 
         let lastPorts = []; // Lưu danh sách cổng COM trước đó
 
@@ -114,37 +115,41 @@
             });
         });
 
-        socket.on('cliResponse', ({ success, comPort, command }) => {
-            Swal.fire({
-                icon: success ? 'success' : 'error',
-                title: success ? 'Thành công' : 'Lỗi',
-                text: success ? `Gửi lệnh "${command}" tới ${comPort} thành công` : `Lỗi khi gửi lệnh tới ${comPort}`,
-                showConfirmButton: false,
-                timer: 1500,
-                background: '#ffffff',
-                color: '#1f2937'
-            });
-            document.getElementById('cliResponse').textContent = '';
+        // Xử lý gửi lệnh CLI
+        document.getElementById('cliForm').addEventListener('submit', e => {
+            e.preventDefault();
+            const comPort = document.getElementById('comSelect').value;
+            const command = document.getElementById('cliCommand').value;
+            if (comPort && command) {
+                socket.emit('sendCli', { comPort, command });
+                document.getElementById('cliCommand').value = ''; // Xóa trường nhập sau khi gửi
+            }
         });
 
-        function sendCli() {
-            const comPort = document.getElementById('comSelect').value;
-            const command = document.getElementById('cliInput').value;
-            if (!comPort || !command) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Cảnh báo',
-                    text: 'Vui lòng chọn cổng COM và nhập lệnh',
-                    showConfirmButton: false,
-                    timer: 1500,
-                    background: '#ffffff',
-                    color: '#1f2937'
-                });
-                return;
+        // Xử lý phản hồi CLI
+        socket.on('cliResponse', ({ success, comPort, command, response }) => {
+            const cliResponsesDiv = document.getElementById('cliResponses');
+            const timestamp = new Date().toLocaleTimeString();
+
+            // Tạo nội dung phản hồi
+            const responseText = response 
+                ? `[${timestamp}] ${comPort} > ${command}: ${response}`
+                : `[${timestamp}] ${comPort} > ${command}: ${success ? 'Thành công' : 'Thất bại'}`;
+
+            // Thêm phản hồi mới vào mảng
+            cliResponses.push(responseText);
+
+            // Giới hạn số lượng phản hồi
+            if (cliResponses.length > maxResponses) {
+                cliResponses.shift(); // Xóa phản hồi cũ nhất
             }
-            socket.emit('sendCli', { comPort, command });
-            document.getElementById('cliInput').value = '';
-        }
+
+            // Cập nhật giao diện
+            cliResponsesDiv.innerHTML = cliResponses.map(resp => `<div>${resp}</div>`).join('');
+
+            // Tự động cuộn xuống phản hồi mới nhất
+            cliResponsesDiv.scrollTop = cliResponsesDiv.scrollHeight;
+        });
     </script>
 </body>
 </html>

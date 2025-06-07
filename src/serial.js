@@ -29,7 +29,7 @@ function connectToPort(path, io, clientComPorts) {
     if (!connectedPorts.has(path)) {
         const port = new SerialPort({ path, baudRate: 9600 });
         connectedPorts.set(path, port);
-
+        console.log(`Cổng ${path} đã mở`)
         const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
         parser.on('data', data => {
