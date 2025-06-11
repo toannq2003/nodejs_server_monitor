@@ -163,7 +163,11 @@ async function initializeExistingPorts(io, clientComPorts) {
 function sendCliCommand(comPort, command) {
     const port = connectedPorts.get(comPort);
     if (port && port.isOpen) {
-        port.write(`${command}\r\n`);
+        port.write(`${command}\r\n`, err => {
+            if (err) {
+            return console.log('Error on write:', err.message);
+            }
+        });
         console.log('Đã gửi lệnh:', command, 'đến cổng', comPort);
         return true;
     }
