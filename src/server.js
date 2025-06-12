@@ -59,7 +59,7 @@ io.on('connection', socket => {
 
     socket.on('sendCli', ({ comPort, command }) => {
         const success = sendCliCommand(comPort, command);
-        socket.emit('cliResponse', { success, comPort, command, response: 'Done' });
+        socket.emit('cliResponse', { success, comPort, response: 'Done' });
     });
 
     socket.on('requestChartData', async () => {

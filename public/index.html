@@ -127,14 +127,14 @@
         });
 
         // Xử lý phản hồi CLI
-        socket.on('cliResponse', ({ success, comPort, command, response }) => {
+        socket.on('cliResponse', ({ success, comPort, response }) => {
             const cliResponsesDiv = document.getElementById('cliResponses');
             const timestamp = new Date().toLocaleTimeString();
 
             // Tạo nội dung phản hồi
             const responseText = response 
-                ? `[${timestamp}] ${comPort} > ${command}: ${response}`
-                : `[${timestamp}] ${comPort} > ${command}: ${success ? 'Thành công' : 'Thất bại'}`;
+                ? `[${timestamp}] ${comPort} > ${response}`
+                : `[${timestamp}] ${comPort} > ${success ? 'Thành công' : 'Thất bại'}`;
 
             // Thêm phản hồi mới vào mảng
             cliResponses.push(responseText);

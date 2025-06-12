@@ -36,7 +36,7 @@ async function updateComList(io) {
     }
 }
 
-function connectToPort(path, io, clientComPorts) {
+async function connectToPort(path, io, clientComPorts) {
 
     if (connectedPorts.has(path)) {
         console.log(`Cổng ${path} đã được kết nối`);
@@ -64,7 +64,7 @@ function connectToPort(path, io, clientComPorts) {
                 console.error(`Lỗi khi mở cổng ${path}:`, err.message);
                 connectionAttempts.set(path, attempts + 1);
                 
-                // Thử lại sau 5 giây nếu chưa quá 3 lần
+                // Thử lại sau 2 giây nếu chưa quá 3 lần
                 if (attempts < 2) {
                     setTimeout(() => {
                         connectToPort(path, io, clientComPorts);
@@ -80,34 +80,143 @@ function connectToPort(path, io, clientComPorts) {
             connectionAttempts.delete(path); // Reset số lần thử
             updateComList(io);
 
-            const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
+            //const parser = port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
-            parser.on('data', data => {
-                const buffer = Buffer.from(data);
-                console.log(`[${path}] Dữ liệu nhận được:`, buffer.toString());
-                try {
-                    const parsedData = {
-                        comPort: path,
-                        addrIpv6: 'fe80::1',
-                        rssi: -50,
-                        lqi: 100,
-                        crc: 'OK',
-                        rawData: data
-                    };
+            // parser.on('data', async (data) => {
+            //     const buffer = Buffer.from(data);
+            //     console.log(`[${path}] Dữ liệu nhận được:`, buffer.toString());
+            //     try {
+            //         const parsedData = {
+            //             comPort: path,
+            //             addrIpv6: 'fe80::1',
+            //             rssi: -50,
+            //             lqi: 100,
+            //             crc: 'OK',
+            //             rawData: data
+            //         };
                     
-                    saveComData(parsedData);
+            //         await saveComData(parsedData);
 
-                    // Gửi dữ liệu mới cho tất cả client để cập nhật đồ thị
-                    io.to('dashboardRoom').emit('newComData', parsedData);
+            //         // Gửi dữ liệu mới cho tất cả client để cập nhật đồ thị
+            //         io.to('dashboardRoom').emit('newComData', parsedData);
 
-                    // Gửi đến các client quan tâm đến comPort này
-                    for (const [socketId, comPort] of clientComPorts) {
-                        if (comPort === parsedData.comPort) {
-                            io.to(socketId).emit('comData', parsedData);
-                        }
+            //         // Gửi đến các client quan tâm đến comPort này
+            //         for (const [socketId, comPort] of clientComPorts) {
+            //             if (comPort === parsedData.comPort) {
+            //                 io.to(socketId).emit('comData', parsedData);
+            //             }
+            //         }
+            //     } catch (error) {
+            //         console.error(`Lỗi khi xử lý dữ liệu từ ${path}:`, error);
+            //     }
+            // });
+
+            let state = "idle";
+            let buffer = Buffer.alloc(0);
+            let offset = 0;
+
+            let type = 0, length = 0, totalLength = 0;
+
+            port.on("data", (chunk) => {
+                buffer = Buffer.concat([buffer, chunk]);
+
+                while (buffer.length > offset) {
+                    switch (state) {
+                        case "idle":
+                            // Ưu tiên tìm nhị phân
+                            if (buffer.length - offset < 2 ) break; // Chưa đủ để xác định
+
+                            if (buffer[offset] === 0xAA && buffer[offset + 1] === 0x55) {
+                            state = "binary";
+                            } else if (buffer[offset] === 0x0D && buffer[offset + 1] === 0x0A) {
+                            state = "string";
+                            } else if (buffer[offset] === 0x3E && buffer[offset + 1] === 0x20) {
+                            state = "> ";
+                            } else {
+                            // Nếu không khớp gì, nhảy qua 1 byte và tiếp tục
+                            offset++;
+                            continue;
+                            }
+                
+                        case "binary":
+                            if (buffer.length - offset < 4) break; // Chưa đủ xác định type
+                            // Đọc type và length
+                            type = buffer[offset + 2];
+                            length = buffer[offset + 3] - 2;
+
+                            switch (type) {
+                                case '1':
+                                    state = "binary_tx";
+                                    totalLength = 2 + 1 + 1 + length + 1 + 1 + 2; // header + type + length + payload + isAck + channel + footer
+                                    break;
+                                case '2':
+                                    state = "binary_rx";
+                                    totalLength = 2 + 1 + 1 + length + 1 + 1 + 1 + 1 + 1 + 2; // header + type + length + payload + isAck + channel + crc + rssi + lqi + footer
+                                    break;
+                                default:
+                                    console.warn("Unknown binary type:", type);
+                                    state = "idle";
+                                    offset++;
+                                    continue;
+                            }
+
+                        case "binary_tx":
+                        case "binary_rx":
+                            if (buffer.length - offset < totalRxLength) break; // Chưa đủ toàn bộ frame
+
+                            // Kiểm tra footer
+                            if (
+                                buffer[offset + totalRxLength - 2] === 0x0d &&
+                                buffer[offset + totalRxLength - 1] === 0x0a
+                            ) {
+                                let frame;
+                                //let info;
+                                switch (state) {
+                                    case "binary_tx":
+                                        frame = buffer.subarray(offset + 3, offset + totalLength - 4);
+                                        //info = buffer.subarray(offset + totalLength - 4, offset + totalLength - 2)
+                                        console.log(`Frame nhị phân Tx ${type}: ${frame}\nRadio_Info: isAck ${buffer[offset + totalRxLength - 4]} channel ${buffer[offset + totalRxLength - 3]}`);
+                                        //saveFrameToDatabase(type, frame, info); // Giả sử có hàm lưu frame vào DB
+                                        //socket.emit('cliResponse', { comPort, command, response: frame.toString('hex') });
+                                        break;
+                                    case "binary_rx":
+                                        frame = buffer.subarray(offset + 3, offset + totalLength - 7);
+                                        //info = buffer.subarray(offset + totalLength - 7, offset + totalLength - 2)
+                                        console.log(`Frame nhị phân Rx ${type}: ${frame}\nRadio_Info: isAck ${buffer[offset + totalRxLength - 7]} channel ${buffer[offset + totalRxLength - 6]} crc ${buffer[offset + totalRxLength - 5]} rssi ${buffer[offset + totalRxLength - 4]} lqi ${buffer[offset + totalRxLength - 3]}`);
+                                        //saveFrameToDatabase(type, frame, info); // Giả sử có hàm lưu frame vào DB
+                                        //socket.emit('cliResponse', { comPort, command, response: frame.toString('hex') });
+                                        break;
+                                } 
+                                
+                                const first = buffer.subarray(0, offset);
+                                const second = buffer.subarray(offset + totalLength);
+                                buffer = Buffer.concat([first, second]);
+                                state = "idle";
+                                continue; // Tiếp tục xử lý buffer mới với offset đó
+                            } else {
+                                // Lỗi đồng bộ, nhảy qua 1 byte
+                                offset++;
+                                state = "idle"; // Reset state sau khi lỗi
+                                continue;
+                            }
+
+                        case "string":
+                        case "> ":
+                            const line = buffer.subarray(0, offset + 2).toString();
+                            io.to('indexRoom').emit('cliResponse', { success: 1 , comPort : path, response: line });
+                            buffer = buffer.subarray(offset + 2); // Cắt bỏ phần đã xử lý
+                            state = "idle"; // Reset state sau khi xử lý chuỗi
+                            offset = 0; // Reset offset sau khi xử lý chuỗi
+                            continue;
+                            
+                        default:
+                            console.error("Unknown state:", state);
+                            offset++;
+                            state = "idle"; // Reset state sau khi lỗi
+                            continue;
                     }
-                } catch (error) {
-                    console.error(`Lỗi khi xử lý dữ liệu từ ${path}:`, error);
+
+                    break; // Đợi dữ liệu mới để tiêp tục do không đủ buffer
                 }
             });
 
