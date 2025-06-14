@@ -45,6 +45,7 @@ async function connectToPort(path, io, clientComPorts) {
 
     const attempts = connectionAttempts.get(path) || 0;
     if (attempts >= 3) {
+        connectionAttempts.delete(path); // Reset số lần thử
         console.error(`Đã thử kết nối cổng ${path} quá nhiều lần, bỏ qua`);
         return;
     }
@@ -127,31 +128,47 @@ async function connectToPort(path, io, clientComPorts) {
                             if (buffer.length - offset < 2 ) break; // Chưa đủ để xác định
 
                             if (buffer[offset] === 0xAA && buffer[offset + 1] === 0x55) {
-                            state = "binary";
+                                state = "binary";
+                                console.log(`frame nhị phân  ${buffer.subarray(offset, offset + 2).toString('hex')}`);
+                                continue;
                             } else if (buffer[offset] === 0x0D && buffer[offset + 1] === 0x0A) {
-                            state = "string";
+                                state = "string";
+                                continue;
                             } else if (buffer[offset] === 0x3E && buffer[offset + 1] === 0x20) {
-                            state = "> ";
+                                state = "> ";
+                                continue;
                             } else {
                             // Nếu không khớp gì, nhảy qua 1 byte và tiếp tục
-                            offset++;
-                            continue;
+                                offset++;
+                                continue;
                             }
+
+                        case "string":
+                        case "> ":
+                            const line = buffer.subarray(0, offset + 2).toString();
+                            console.log("String:", buffer.subarray(0, offset + 2).toString('hex'));
+                            io.to('indexRoom').emit('cliResponse', { success: 1 , comPort : path, response: line });
+                            buffer = buffer.subarray(offset + 2); // Cắt bỏ phần đã xử lý
+                            state = "idle"; // Reset state sau khi xử lý chuỗi
+                            offset = 0; // Reset offset sau khi xử lý chuỗi
+                            continue;
                 
                         case "binary":
                             if (buffer.length - offset < 4) break; // Chưa đủ xác định type
                             // Đọc type và length
                             type = buffer[offset + 2];
                             length = buffer[offset + 3] - 2;
-
+                            console.log("Tính type, Length:", buffer.subarray(offset + 2, offset + 4).toString('hex'));
                             switch (type) {
-                                case '1':
+                                case 0xFD:
                                     state = "binary_tx";
                                     totalLength = 2 + 1 + 1 + length + 1 + 1 + 2; // header + type + length + payload + isAck + channel + footer
+                                    console.log(`Vô 0xFD type, Length: ${length}, totalLength ${totalLength}`);
                                     break;
-                                case '2':
+                                case 0xF9:
                                     state = "binary_rx";
                                     totalLength = 2 + 1 + 1 + length + 1 + 1 + 1 + 1 + 1 + 2; // header + type + length + payload + isAck + channel + crc + rssi + lqi + footer
+                                    console.log("Vô 0xF9 type, Length:", totalLength);
                                     break;
                                 default:
                                     console.warn("Unknown binary type:", type);
@@ -162,27 +179,30 @@ async function connectToPort(path, io, clientComPorts) {
 
                         case "binary_tx":
                         case "binary_rx":
-                            if (buffer.length - offset < totalRxLength) break; // Chưa đủ toàn bộ frame
-
+                            console.log("buffer.length - offset, offset:", buffer.length - offset, offset);
+                            if (buffer.length - offset < totalLength) break; // Chưa đủ toàn bộ frame
+                            console.log("Vô totalLength", buffer.subarray(offset + totalLength - 2, offset + totalLength).toString('hex'));
+                            console.log("footer totalLength", buffer.subarray(offset, offset + totalLength).toString('hex'), buffer.subarray(offset, offset + totalLength).toString('hex').length);
                             // Kiểm tra footer
                             if (
-                                buffer[offset + totalRxLength - 2] === 0x0d &&
-                                buffer[offset + totalRxLength - 1] === 0x0a
+                                buffer[offset + totalLength - 2] === 0x0D &&
+                                buffer[offset + totalLength - 1] === 0x0A
                             ) {
                                 let frame;
+                                console.log("Vô footer");
                                 //let info;
                                 switch (state) {
                                     case "binary_tx":
                                         frame = buffer.subarray(offset + 3, offset + totalLength - 4);
                                         //info = buffer.subarray(offset + totalLength - 4, offset + totalLength - 2)
-                                        console.log(`Frame nhị phân Tx ${type}: ${frame}\nRadio_Info: isAck ${buffer[offset + totalRxLength - 4]} channel ${buffer[offset + totalRxLength - 3]}`);
+                                        console.log(`Frame nhị phân Tx ${type}: ${frame}\nRadio_Info: isAck ${buffer[offset + totalLength - 4]} channel ${buffer[offset + totalLength - 3]}`);
                                         //saveFrameToDatabase(type, frame, info); // Giả sử có hàm lưu frame vào DB
                                         //socket.emit('cliResponse', { comPort, command, response: frame.toString('hex') });
                                         break;
                                     case "binary_rx":
                                         frame = buffer.subarray(offset + 3, offset + totalLength - 7);
                                         //info = buffer.subarray(offset + totalLength - 7, offset + totalLength - 2)
-                                        console.log(`Frame nhị phân Rx ${type}: ${frame}\nRadio_Info: isAck ${buffer[offset + totalRxLength - 7]} channel ${buffer[offset + totalRxLength - 6]} crc ${buffer[offset + totalRxLength - 5]} rssi ${buffer[offset + totalRxLength - 4]} lqi ${buffer[offset + totalRxLength - 3]}`);
+                                        console.log(`Frame nhị phân Rx ${type}: ${frame}\nRadio_Info: isAck ${buffer[offset + totalLength - 7]} channel ${buffer[offset + totalLength - 6]} crc ${buffer[offset + totalLength - 5]} rssi ${buffer[offset + totalLength - 4]} lqi ${buffer[offset + totalLength - 3]}`);
                                         //saveFrameToDatabase(type, frame, info); // Giả sử có hàm lưu frame vào DB
                                         //socket.emit('cliResponse', { comPort, command, response: frame.toString('hex') });
                                         break;
@@ -195,19 +215,12 @@ async function connectToPort(path, io, clientComPorts) {
                                 continue; // Tiếp tục xử lý buffer mới với offset đó
                             } else {
                                 // Lỗi đồng bộ, nhảy qua 1 byte
+                                //buffer= buffer.subarray(offset + 2);
                                 offset++;
+                                console.log("Lỗi đồng bộ");
                                 state = "idle"; // Reset state sau khi lỗi
                                 continue;
                             }
-
-                        case "string":
-                        case "> ":
-                            const line = buffer.subarray(0, offset + 2).toString();
-                            io.to('indexRoom').emit('cliResponse', { success: 1 , comPort : path, response: line });
-                            buffer = buffer.subarray(offset + 2); // Cắt bỏ phần đã xử lý
-                            state = "idle"; // Reset state sau khi xử lý chuỗi
-                            offset = 0; // Reset offset sau khi xử lý chuỗi
-                            continue;
                             
                         default:
                             console.error("Unknown state:", state);
@@ -237,7 +250,6 @@ async function connectToPort(path, io, clientComPorts) {
         console.error(`Lỗi khi khởi tạo cổng ${path}:`, error.message);
         connectionAttempts.set(path, attempts + 1);
     }
-    
 }
 
 function monitorPorts(io, clientComPorts) {
