@@ -1,10 +1,10 @@
+// database.js
 const mysql = require('mysql2/promise');
 const dotenv = require('dotenv');
 
 dotenv.config();
 
 async function initializeDatabase() {
-    // Kết nối với MySQL bằng tài khoản root
     const rootPool = mysql.createPool({
         host: process.env.DB_HOST,
         user: process.env.DB_ROOT_USER,
@@ -12,25 +12,17 @@ async function initializeDatabase() {
     });
 
     try {
-        // Tạo cơ sở dữ liệu nếu chưa tồn tại
         await rootPool.execute(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME}`);
-
-        // Tạo tài khoản người dùng nếu chưa tồn tại
         await rootPool.execute(`
             CREATE USER IF NOT EXISTS '${process.env.DB_USER}'@'${process.env.DB_HOST}'
             IDENTIFIED BY '${process.env.DB_PASSWORD}'
         `);
-
-        // Cấp quyền cho người dùng
         await rootPool.execute(`
-            GRANT ALL PRIVILEGES ON ${process.env.DB_NAME}.* 
+            GRANT ALL PRIVILEGES ON ${process.env.DB_NAME}.*
             TO '${process.env.DB_USER}'@'${process.env.DB_HOST}'
         `);
-
-        // Đóng kết nối root
         await rootPool.end();
 
-        // Kết nối tới cơ sở dữ liệu với tài khoản người dùng
         const pool = mysql.createPool({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
@@ -38,17 +30,38 @@ async function initializeDatabase() {
             database: process.env.DB_NAME
         });
 
-        // Tạo bảng com_data nếu chưa tồn tại
+        // Tạo bảng kits để lưu thông tin kit
         await pool.execute(`
-            CREATE TABLE IF NOT EXISTS com_data (
+            CREATE TABLE IF NOT EXISTS kits (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                unique_id VARCHAR(100) UNIQUE NOT NULL,
                 com_port VARCHAR(50),
-                addr_ipv6 VARCHAR(50),
+                last_seen DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                status ENUM('online', 'offline') DEFAULT 'online',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Cập nhật bảng log_data với mã định danh và thời gian server
+        await pool.execute(`
+            CREATE TABLE IF NOT EXISTS log_data (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                kit_unique_id VARCHAR(100) NOT NULL,
+                com_port VARCHAR(50),
+                log_type ENUM('TX', 'TXE', 'RX') NOT NULL,
+                length INT,
+                data_hex TEXT,
+                is_ack BOOLEAN,
+                channel INT,
                 rssi INT,
                 lqi INT,
-                crc VARCHAR(50),
-                raw_data TEXT,
-                timestamp DATETIME
+                crc_passed BOOLEAN,
+                error_code INT,
+                kit_timestamp BIGINT,
+                server_timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_kit_id (kit_unique_id),
+                INDEX idx_timestamp (server_timestamp),
+                FOREIGN KEY (kit_unique_id) REFERENCES kits(unique_id) ON DELETE CASCADE
             )
         `);
 
@@ -59,33 +72,94 @@ async function initializeDatabase() {
     }
 }
 
-// Khởi tạo pool khi module được tải
 const poolPromise = initializeDatabase();
 
-async function saveComData({ comPort, addrIpv6, rssi, lqi, crc, rawData }) {
+// Lưu thông tin kit
+async function saveKitInfo(uniqueId, comPort) {
+    const pool = await poolPromise;
+    await pool.execute(`
+        INSERT INTO kits (unique_id, com_port, status) 
+        VALUES (?, ?, 'online')
+        ON DUPLICATE KEY UPDATE 
+        com_port = VALUES(com_port), 
+        status = 'online',
+        last_seen = CURRENT_TIMESTAMP
+    `, [uniqueId, comPort]);
+}
+
+// Cập nhật trạng thái kit
+async function updateKitStatus(comPort, status) {
+    const pool = await poolPromise;
+    await pool.execute(
+        'UPDATE kits SET status = ?, last_seen = CURRENT_TIMESTAMP WHERE com_port = ?',
+        [status, comPort]
+    );
+}
+
+// Lưu dữ liệu log
+async function saveLogData(logData) {
     const pool = await poolPromise;
     const query = `
-        INSERT INTO com_data (com_port, addr_ipv6, rssi, lqi, crc, raw_data, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
+        INSERT INTO log_data (
+            kit_unique_id, com_port, log_type, length, data_hex, 
+            is_ack, channel, rssi, lqi, crc_passed, error_code, kit_timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    await pool.execute(query, [comPort, addrIpv6, rssi, lqi, crc, rawData]);
+    
+    await pool.execute(query, [
+        logData.kitUniqueId, logData.comPort, logData.logType,
+        logData.length, logData.dataHex, logData.isAck, logData.channel,
+        logData.rssi, logData.lqi, logData.crcPassed, logData.errorCode,
+        logData.kitTimestamp
+    ]);
 }
 
-async function getComData(comPort) {
+// Lấy danh sách kits
+async function getAllKits() {
     const pool = await poolPromise;
-    const [rows] = await pool.execute(
-        'SELECT * FROM com_data WHERE com_port = ?',
-        [comPort]
-    );
+    const [rows] = await pool.execute('SELECT * FROM kits ORDER BY last_seen DESC');
     return rows;
 }
 
-async function getAllComDataForCharts() {
+// Lấy dữ liệu log cho biểu đồ
+async function getChartData(kitIds = null, timeRange = '24h') {
     const pool = await poolPromise;
-    const [rows] = await pool.execute(
-        'SELECT com_port AS comPort, rssi, lqi, timestamp FROM com_data ORDER BY timestamp'
-    );
+    let query = `
+        SELECT kit_unique_id, rssi, lqi, server_timestamp 
+        FROM log_data 
+        WHERE log_type IN ('TX', 'RX') AND rssi IS NOT NULL AND lqi IS NOT NULL
+    `;
+    
+    const params = [];
+    
+    if (kitIds && kitIds.length > 0) {
+        query += ` AND kit_unique_id IN (${kitIds.map(() => '?').join(',')})`;
+        params.push(...kitIds);
+    }
+    
+    // Thêm điều kiện thời gian
+    switch (timeRange) {
+        case '1h':
+            query += ' AND server_timestamp >= DATE_SUB(NOW(), INTERVAL 1 HOUR)';
+            break;
+        case '24h':
+            query += ' AND server_timestamp >= DATE_SUB(NOW(), INTERVAL 24 HOUR)';
+            break;
+        case '7d':
+            query += ' AND server_timestamp >= DATE_SUB(NOW(), INTERVAL 7 DAY)';
+            break;
+    }
+    
+    query += ' ORDER BY server_timestamp ASC';
+    
+    const [rows] = await pool.execute(query, params);
     return rows;
 }
 
-module.exports = { saveComData, getComData, getAllComDataForCharts };
+module.exports = { 
+    saveKitInfo, 
+    updateKitStatus, 
+    saveLogData, 
+    getAllKits, 
+    getChartData 
+};

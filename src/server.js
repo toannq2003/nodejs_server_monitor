@@ -1,10 +1,11 @@
+// server.js
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
-const { monitorPorts, sendCliCommand } = require('./serial');
-const { getComData, getAllComDataForCharts } = require('./database');
+const { connectToPort, sendCliCommand, monitorPorts } = require('./serial');
+const { getAllKits, getChartData } = require('./database');
 
 dotenv.config();
 
@@ -12,11 +13,9 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Lưu trữ thông tin comPort của mỗi client
-const clientComPorts = new Map();
-
 app.use(express.static(path.join(__dirname, '../public')));
 
+// Routes
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
@@ -29,6 +28,7 @@ app.get('/charts', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/charts.html'));
 });
 
+// Socket.IO events
 io.on('connection', socket => {
     console.log('Client connected');
 
@@ -37,46 +37,43 @@ io.on('connection', socket => {
         console.log(`Client joined room: ${room}`);
     });
 
-    // Client đăng ký comPort mà nó quan tâm
-    socket.on('registerComPort', comPort => {
-        clientComPorts.set(socket.id, comPort);
-        console.log(`Client ${socket.id} registered for comPort: ${comPort}`);
-    });
-
-    socket.on('requestComList', async () => {
-        const ports = await require('./serial').listComPorts();
-        io.to('indexRoom').emit('comList', ports.map((p, index) => ({
-            id: index + 1,
-            comPort: p.path,
-            addrIpv6: 'fe80::1'
-        })));
-    });
-
-    socket.on('getComData', async comPort => {
-        const data = await getComData(comPort);
-        socket.emit('comDataHistory', data);
+    socket.on('requestKitsList', async () => {
+        try {
+            const kits = await getAllKits();
+            socket.emit('kitsList', kits);
+        } catch (error) {
+            console.error('Lỗi khi lấy danh sách kits:', error);
+        }
     });
 
     socket.on('sendCli', ({ comPort, command }) => {
         const success = sendCliCommand(comPort, command);
-        //socket.emit('cliResponse', { success, comPort, response: 'Done' });
+        if (!success) {
+            socket.emit('cliResponse', {
+                comPort,
+                response: 'Lỗi: Không thể gửi lệnh đến kit'
+            });
+        }
     });
 
-    socket.on('requestChartData', async () => {
-        const data = await getAllComDataForCharts();
-        socket.emit('chartData', data);
+    socket.on('requestChartData', async ({ kitIds, timeRange }) => {
+        try {
+            const data = await getChartData(kitIds, timeRange);
+            socket.emit('chartData', data);
+        } catch (error) {
+            console.error('Lỗi khi lấy dữ liệu biểu đồ:', error);
+        }
     });
 
     socket.on('disconnect', () => {
         console.log('Client disconnected');
-        clientComPorts.delete(socket.id);
     });
 });
 
-// Truyền io để sử dụng trong serial.js
-monitorPorts(io, clientComPorts);
+// Khởi động monitor cổng COM
+monitorPorts(io);
 
 const PORT = process.env.SERVER_PORT || 3000;
-server.listen(PORT, process.env.SERVER_HOST, () => {
-    console.log(`Server running at http://${process.env.SERVER_HOST}:${PORT}`);
+server.listen(PORT, process.env.SERVER_HOST || 'localhost', () => {
+    console.log(`Server running at http://${process.env.SERVER_HOST || 'localhost'}:${PORT}`);
 });

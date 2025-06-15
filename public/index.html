@@ -3,153 +3,254 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenThread Monitoring Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <title>OpenThread Kit Monitor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 text-gray-800">
-    <nav class="navbar navbar-expand-lg bg-blue-900 text-white shadow-md">
-        <div class="container max-w-4xl">
-            <a class="navbar-brand font-extrabold text-xl" href="#">OpenThread Monitoring</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link text-gray-200 hover:text-blue-300" href="index.html">Dashboard</a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-gray-200 hover:text-blue-300" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Menu
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="charts.html">Đồ thị</a></li>
-                        </ul>
-                    </li>
-                </ul>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-microchip me-2"></i>OpenThread Kit Monitor
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="/"><i class="fas fa-home me-1"></i>Dashboard</a>
+                <a class="nav-link" href="/details"><i class="fas fa-list me-1"></i>Chi tiết Log</a>
+                <a class="nav-link" href="/charts"><i class="fas fa-chart-line me-1"></i>Biểu đồ</a>
             </div>
         </div>
     </nav>
 
-        <div class="container py-6 max-w-4xl">
-        <h2 class="text-xl font-semibold mb-4 text-gray-800" data-aos="fade-up">Gửi lệnh CLI</h2>
-        <div class="card bg-white shadow-lg rounded-lg mb-6" data-aos="zoom-in">
-            <div class="card-body p-4">
-                <form class="flex gap-3 items-center" id="cliForm">
-                    <select class="form-select bg-gray-50 text-gray-800 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 w-32" id="comSelect">
-                        <option value="">Chọn COM</option>
-                    </select>
-                    <input type="text" class="form-control bg-gray-50 text-gray-800 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 flex-grow" id="cliCommand" placeholder="Nhập lệnh CLI">
-                    <button type="submit" class="btn bg-blue-600 text-white rounded-md w-20 h-10 hover:bg-blue-700 transform hover:scale-105 transition-all">Gửi</button>
-                </form>
-                <div class="cli-responses mt-3"  id="cliResponses">
-                    <!-- Phản hồi CLI sẽ được thêm vào đây -->
+    <div class="container mt-4">
+        <!-- Trạng thái kết nối -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-plug me-2"></i>Trạng thái kết nối Kit</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="connection-status" class="row">
+                            <!-- Sẽ được cập nhật bằng JavaScript -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <h2 class="text-xl font-semibold mb-4 text-gray-800" data-aos="fade-up">Danh sách cổng COM</h2>
-        <div class="card bg-white shadow-lg rounded-lg" data-aos="fade-up" data-aos-delay="100">
-            <div class="card-body p-4">
-                <div class="table-responsive">
-                    <table class="table table-hover table-sticky" id="comTable">
-                        <thead class="bg-blue-600 text-white">
-                            <tr>
-                                <th scope="col">ID</th>
-                                <th scope="col">Cổng COM</th>
-                                <th scope="col">Địa chỉ IPv6</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+        <!-- CLI Interface -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>Giao diện CLI</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <select id="kit-select" class="form-select">
+                                    <option value="">Chọn Kit...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" id="cli-command" class="form-control" placeholder="Nhập lệnh CLI...">
+                            </div>
+                            <div class="col-md-2">
+                                <button id="send-cli" class="btn btn-primary w-100">
+                                    <i class="fas fa-paper-plane me-1"></i>Gửi
+                                </button>
+                            </div>
+                        </div>
+                        <div class="cli-responses" id="cli-responses">
+                            <!-- CLI responses sẽ hiển thị ở đây -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Danh sách Kits -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Danh sách Kits đã kết nối</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Mã định danh</th>
+                                        <th>Cổng COM</th>
+                                        <th>Trạng thái</th>
+                                        <th>Lần cuối thấy</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kits-table-body">
+                                    <!-- Dữ liệu sẽ được cập nhật bằng JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        AOS.init({ duration: 500, once: true });
-
         const socket = io();
-        const maxResponses = 50; // Giới hạn số lượng phản hồi lưu trữ
-        let cliResponses = []; // Mảng lưu trữ phản hồi CLI
-
         socket.emit('joinRoom', 'indexRoom');
-        socket.emit('requestComList');
 
-        let lastPorts = []; // Lưu danh sách cổng COM trước đó
+        // Cập nhật danh sách kits
+        socket.on('kitsList', (kits) => {
+            updateKitsTable(kits);
+            updateKitSelect(kits);
+            updateConnectionStatus(kits);
+        });
 
-        socket.on('comList', ports => {
-            const portPaths = ports.map(p => p.comPort).sort();
-            if (JSON.stringify(portPaths) === JSON.stringify(lastPorts)) {
-                return; // Không cập nhật nếu danh sách không đổi
-            }
-            lastPorts = portPaths;
+        // Kit mới kết nối
+        socket.on('kitConnected', (kitInfo) => {
+            showNotification(`Kit ${kitInfo.uniqueId} đã kết nối qua ${kitInfo.comPort}`, 'success');
+        });
 
-            const tableBody = document.querySelector('#comTable tbody');
-            const comSelect = document.getElementById('comSelect');
-            tableBody.innerHTML = '';
-            comSelect.innerHTML = '<option value="">Chọn COM</option>';
+        // Phản hồi CLI
+        socket.on('cliResponse', (response) => {
+            appendCliResponse(response);
+        });
 
-            ports.forEach(port => {
+        function updateKitsTable(kits) {
+            const tbody = document.getElementById('kits-table-body');
+            tbody.innerHTML = '';
+            
+            kits.forEach(kit => {
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-blue-50 transition-colors';
+                const statusBadge = kit.status === 'online' ? 
+                    '<span class="badge bg-success">Online</span>' : 
+                    '<span class="badge bg-danger">Offline</span>';
+                
                 row.innerHTML = `
-                    <td>${port.id}</td>
-                    <td><a href="details.html?com=${port.comPort}" class="text-blue-600 hover:text-blue-800">${port.comPort}</a></td>
-                    <td>${port.addrIpv6}</td>
+                    <td><code>${kit.unique_id}</code></td>
+                    <td>${kit.com_port || 'N/A'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${new Date(kit.last_seen).toLocaleString('vi-VN')}</td>
+                    <td>
+                        <a href="/details?kit=${kit.unique_id}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i>Xem chi tiết
+                        </a>
+                    </td>
                 `;
-                tableBody.appendChild(row);
-
-                const option = document.createElement('option');
-                option.value = port.comPort;
-                option.textContent = port.comPort;
-                comSelect.appendChild(option);
+                tbody.appendChild(row);
             });
+        }
+
+        function updateKitSelect(kits) {
+            const select = document.getElementById('kit-select');
+            const currentValue = select.value;
+            
+            select.innerHTML = '<option value="">Chọn Kit...</option>';
+            
+            kits.filter(kit => kit.status === 'online').forEach(kit => {
+                const option = document.createElement('option');
+                option.value = kit.com_port;
+                option.textContent = `${kit.unique_id} (${kit.com_port})`;
+                select.appendChild(option);
+            });
+            
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+
+        function updateConnectionStatus(kits) {
+            const container = document.getElementById('connection-status');
+            container.innerHTML = '';
+            
+            const onlineKits = kits.filter(kit => kit.status === 'online');
+            const offlineKits = kits.filter(kit => kit.status === 'offline');
+            
+            container.innerHTML = `
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-circle text-success me-2"></i>
+                        <span class="fw-bold">Kits Online: ${onlineKits.length}</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-circle text-danger me-2"></i>
+                        <span class="fw-bold">Kits Offline: ${offlineKits.length}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Gửi lệnh CLI
+        document.getElementById('send-cli').addEventListener('click', () => {
+            const kitSelect = document.getElementById('kit-select');
+            const commandInput = document.getElementById('cli-command');
+            
+            if (!kitSelect.value || !commandInput.value.trim()) {
+                showNotification('Vui lòng chọn kit và nhập lệnh', 'warning');
+                return;
+            }
+            
+            socket.emit('sendCli', {
+                comPort: kitSelect.value,
+                command: commandInput.value.trim()
+            });
+            
+            appendCliResponse({
+                comPort: kitSelect.value,
+                response: `> ${commandInput.value.trim()}`,
+                isCommand: true
+            });
+            
+            commandInput.value = '';
         });
 
-        // Xử lý gửi lệnh CLI
-        document.getElementById('cliForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const comPort = document.getElementById('comSelect').value;
-            const command = document.getElementById('cliCommand').value;
-            if (comPort && command) {
-                socket.emit('sendCli', { comPort, command });
-                document.getElementById('cliCommand').value = ''; // Xóa trường nhập sau khi gửi
+        // Enter để gửi lệnh
+        document.getElementById('cli-command').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('send-cli').click();
             }
         });
 
-        // Xử lý phản hồi CLI
-        socket.on('cliResponse', ({ success, comPort, response }) => {
-            const cliResponsesDiv = document.getElementById('cliResponses');
-            const timestamp = new Date().toLocaleTimeString();
+        function appendCliResponse(response) {
+            const container = document.getElementById('cli-responses');
+            const div = document.createElement('div');
+            div.className = response.isCommand ? 'cli-command' : 'cli-response';
+            div.textContent = `[${response.comPort}] ${response.response}`;
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
 
-            // Tạo nội dung phản hồi
-            const responseText = response 
-                ? `[${timestamp}] ${comPort} > ${response}`
-                : `[${timestamp}] ${comPort} > ${success ? 'Thành công' : 'Thất bại'}`;
+        function showNotification(message, type = 'info') {
+            // Tạo toast notification
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 5000);
+        }
 
-            // Thêm phản hồi mới vào mảng
-            cliResponses.push(responseText);
-
-            // Giới hạn số lượng phản hồi
-            if (cliResponses.length > maxResponses) {
-                cliResponses.shift(); // Xóa phản hồi cũ nhất
-            }
-
-            // Cập nhật giao diện
-            cliResponsesDiv.innerHTML = cliResponses.map(resp => `<div>${resp}</div>`).join('');
-
-            // Tự động cuộn xuống phản hồi mới nhất
-            cliResponsesDiv.scrollTop = cliResponsesDiv.scrollHeight;
-        });
+        // Yêu cầu danh sách kits khi tải trang
+        socket.emit('requestKitsList');
     </script>
 </body>
 </html>
