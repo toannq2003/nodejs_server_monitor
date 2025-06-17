@@ -3,152 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenThread Monitoring Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <title>OpenThread Packet Monitor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-gray-100 text-gray-800">
-    <nav class="navbar navbar-expand-lg bg-blue-900 text-white shadow-md">
-        <div class="container max-w-4xl">
-            <a class="navbar-brand font-extrabold text-xl" href="#">OpenThread Monitoring</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link text-gray-200 hover:text-blue-300" href="index.html">Dashboard</a>
-                    </li>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle text-gray-200 hover:text-blue-300" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Menu
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                            <li><a class="dropdown-item" href="charts.html">Đồ thị</a></li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">OpenThread Packet Monitor</a>
         </div>
     </nav>
 
-        <div class="container py-6 max-w-4xl">
-        <h2 class="text-xl font-semibold mb-4 text-gray-800" data-aos="fade-up">Gửi lệnh CLI</h2>
-        <div class="card bg-white shadow-lg rounded-lg mb-6" data-aos="zoom-in">
-            <div class="card-body p-4">
-                <form class="flex gap-3 items-center" id="cliForm">
-                    <select class="form-select bg-gray-50 text-gray-800 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 w-32" id="comSelect">
-                        <option value="">Chọn COM</option>
-                    </select>
-                    <input type="text" class="form-control bg-gray-50 text-gray-800 border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 flex-grow" id="cliCommand" placeholder="Nhập lệnh CLI">
-                    <button type="submit" class="btn bg-blue-600 text-white rounded-md w-20 h-10 hover:bg-blue-700 transform hover:scale-105 transition-all">Gửi</button>
-                </form>
-                <div class="cli-responses mt-3"  id="cliResponses">
-                    <!-- Phản hồi CLI sẽ được thêm vào đây -->
+    <div class="container mt-4">
+        <!-- CLI Command Section -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Gửi lệnh CLI</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="comPortSelect" class="form-label">Chọn COM Port</label>
+                            <select class="form-select" id="comPortSelect">
+                                <option value="">Chọn cổng COM...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cliCommand" class="form-label">Lệnh CLI</label>
+                            <input type="text" class="form-control" id="cliCommand" placeholder="Nhập lệnh CLI...">
+                        </div>
+                        <button class="btn btn-primary" id="sendCliBtn">Gửi</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>CLI Response</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="cli-responses" id="cliResponses"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <h2 class="text-xl font-semibold mb-4 text-gray-800" data-aos="fade-up">Danh sách cổng COM</h2>
-        <div class="card bg-white shadow-lg rounded-lg" data-aos="fade-up" data-aos-delay="100">
-            <div class="card-body p-4">
+        <!-- Packet Data Table -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Dữ liệu Packet</h5>
+                <div>
+                    <button class="btn btn-success btn-sm" id="refreshBtn">Làm mới</button>
+                    <button class="btn btn-warning btn-sm" id="clearBtn">Xóa</button>
+                </div>
+            </div>
+            <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-hover table-sticky" id="comTable">
-                        <thead class="bg-blue-600 text-white">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
                             <tr>
-                                <th scope="col">ID</th>
-                                <th scope="col">Cổng COM</th>
-                                <th scope="col">Địa chỉ IPv6</th>
+                                <th>ID</th>
+                                <th>Type</th>
+                                <th>Timestamp</th>
+                                <th>Packet Length</th>
+                                <th>Kit Unique</th>
+                                <th>Error Code</th>
+                                <th>Is ACK</th>
+                                <th>Channel</th>
+                                <th>Packet Data</th>
+                                <th>COM Port</th>
                             </tr>
                         </thead>
-                        <tbody></tbody>
+                        <tbody id="packetTableBody">
+                            <!-- Dữ liệu sẽ được load bằng JavaScript -->
+                        </tbody>
                     </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        AOS.init({ duration: 500, once: true });
-
         const socket = io();
-        const maxResponses = 50; // Giới hạn số lượng phản hồi lưu trữ
-        let cliResponses = []; // Mảng lưu trữ phản hồi CLI
-
+        
+        // Join room
         socket.emit('joinRoom', 'indexRoom');
-        socket.emit('requestComList');
-
-        let lastPorts = []; // Lưu danh sách cổng COM trước đó
-
-        socket.on('comList', ports => {
-            const portPaths = ports.map(p => p.comPort).sort();
-            if (JSON.stringify(portPaths) === JSON.stringify(lastPorts)) {
-                return; // Không cập nhật nếu danh sách không đổi
-            }
-            lastPorts = portPaths;
-
-            const tableBody = document.querySelector('#comTable tbody');
-            const comSelect = document.getElementById('comSelect');
-            tableBody.innerHTML = '';
-            comSelect.innerHTML = '<option value="">Chọn COM</option>';
-
+        
+        // Load packet data on page load
+        socket.emit('requestPacketData');
+        
+        // Handle packet data response
+        socket.on('packetData', (data) => {
+            updatePacketTable(data);
+        });
+        
+        // Handle new packet data
+        socket.on('newPacketData', (data) => {
+            addPacketToTable(data);
+        });
+        
+        // Handle CLI response
+        socket.on('cliResponse', (data) => {
+            const cliResponses = document.getElementById('cliResponses');
+            cliResponses.textContent += `[${data.comPort}] ${data.response}\n`;
+            cliResponses.scrollTop = cliResponses.scrollHeight;
+        });
+        
+        // Update COM port list
+        socket.on('comList', (ports) => {
+            const select = document.getElementById('comPortSelect');
+            select.innerHTML = '<option value="">Chọn cổng COM...</option>';
             ports.forEach(port => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-blue-50 transition-colors';
-                row.innerHTML = `
-                    <td>${port.id}</td>
-                    <td><a href="details.html?com=${port.comPort}" class="text-blue-600 hover:text-blue-800">${port.comPort}</a></td>
-                    <td>${port.addrIpv6}</td>
-                `;
-                tableBody.appendChild(row);
-
                 const option = document.createElement('option');
                 option.value = port.comPort;
                 option.textContent = port.comPort;
-                comSelect.appendChild(option);
+                select.appendChild(option);
             });
         });
-
-        // Xử lý gửi lệnh CLI
-        document.getElementById('cliForm').addEventListener('submit', e => {
-            e.preventDefault();
-            const comPort = document.getElementById('comSelect').value;
+        
+        // Send CLI command
+        document.getElementById('sendCliBtn').addEventListener('click', () => {
+            const comPort = document.getElementById('comPortSelect').value;
             const command = document.getElementById('cliCommand').value;
+            
             if (comPort && command) {
                 socket.emit('sendCli', { comPort, command });
-                document.getElementById('cliCommand').value = ''; // Xóa trường nhập sau khi gửi
+                document.getElementById('cliCommand').value = '';
+            } else {
+                alert('Vui lòng chọn COM port và nhập lệnh!');
             }
         });
-
-        // Xử lý phản hồi CLI
-        socket.on('cliResponse', ({ success, comPort, response }) => {
-            const cliResponsesDiv = document.getElementById('cliResponses');
-            const timestamp = new Date().toLocaleTimeString();
-
-            // Tạo nội dung phản hồi
-            const responseText = response 
-                ? `[${timestamp}] ${comPort} > ${response}`
-                : `[${timestamp}] ${comPort} > ${success ? 'Thành công' : 'Thất bại'}`;
-
-            // Thêm phản hồi mới vào mảng
-            cliResponses.push(responseText);
-
-            // Giới hạn số lượng phản hồi
-            if (cliResponses.length > maxResponses) {
-                cliResponses.shift(); // Xóa phản hồi cũ nhất
+        
+        // Refresh packet data
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            socket.emit('requestPacketData');
+        });
+        
+        // Clear table
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            document.getElementById('packetTableBody').innerHTML = '';
+        });
+        
+        // Update packet table
+        function updatePacketTable(data) {
+            const tbody = document.getElementById('packetTableBody');
+            tbody.innerHTML = '';
+            
+            data.forEach(packet => {
+                addPacketToTable(packet);
+            });
+        }
+        
+        // Add single packet to table
+        function addPacketToTable(packet) {
+            const tbody = document.getElementById('packetTableBody');
+            const row = document.createElement('tr');
+            
+            // Format timestamp
+            const timestamp = new Date(packet.timestamp).toLocaleString('vi-VN');
+            
+            // Truncate packet data if too long
+            const packetData = packet.packet_data.length > 50 ? 
+                packet.packet_data.substring(0, 50) + '...' : 
+                packet.packet_data;
+            
+            row.innerHTML = `
+                <td>${packet.id || 'N/A'}</td>
+                <td><span class="badge ${packet.type === 'TX' ? 'bg-success' : 'bg-info'}">${packet.type}</span></td>
+                <td>${timestamp}</td>
+                <td>${packet.packet_length || packet.packetLength}</td>
+                <td><code>${packet.kit_unique || packet.kitUnique}</code></td>
+                <td>${packet.error_code || packet.errorCode}</td>
+                <td>${(packet.is_ack || packet.isAck) ? 'Yes' : 'No'}</td>
+                <td>${packet.channel}</td>
+                <td><code title="${packet.packet_data || packet.packetData}">${packetData}</code></td>
+                <td>${packet.com_port || packet.comPort}</td>
+            `;
+            
+            // Insert at the beginning of the table
+            tbody.insertBefore(row, tbody.firstChild);
+            
+            // Limit table rows to 100
+            if (tbody.children.length > 100) {
+                tbody.removeChild(tbody.lastChild);
             }
-
-            // Cập nhật giao diện
-            cliResponsesDiv.innerHTML = cliResponses.map(resp => `<div>${resp}</div>`).join('');
-
-            // Tự động cuộn xuống phản hồi mới nhất
-            cliResponsesDiv.scrollTop = cliResponsesDiv.scrollHeight;
+        }
+        
+        // Request COM port list on load
+        socket.emit('requestComList');
+        
+        // Handle Enter key in CLI command input
+        document.getElementById('cliCommand').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('sendCliBtn').click();
+            }
         });
     </script>
 </body>

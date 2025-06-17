@@ -4,7 +4,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
 const { monitorPorts, sendCliCommand } = require('./serial');
-const { getComData, getAllComDataForCharts } = require('./database');
+const { getAllPacketData, getPacketDataByKit } = require('./database');
 
 dotenv.config();
 
@@ -12,7 +12,6 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-// Lưu trữ thông tin comPort của mỗi client
 const clientComPorts = new Map();
 
 app.use(express.static(path.join(__dirname, '../public')));
@@ -21,50 +20,36 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-app.get('/details', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/details.html'));
-});
-
-app.get('/charts', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/charts.html'));
-});
-
 io.on('connection', socket => {
     console.log('Client connected');
-
+    
     socket.on('joinRoom', room => {
         socket.join(room);
         console.log(`Client joined room: ${room}`);
     });
 
-    // Client đăng ký comPort mà nó quan tâm
-    socket.on('registerComPort', comPort => {
-        clientComPorts.set(socket.id, comPort);
-        console.log(`Client ${socket.id} registered for comPort: ${comPort}`);
+    // Gửi dữ liệu packet khi client yêu cầu
+    socket.on('requestPacketData', async () => {
+        try {
+            const data = await getAllPacketData();
+            socket.emit('packetData', data);
+        } catch (error) {
+            console.error('Lỗi khi lấy dữ liệu packet:', error);
+        }
     });
 
-    socket.on('requestComList', async () => {
-        const ports = await require('./serial').listComPorts();
-        io.to('indexRoom').emit('comList', ports.map((p, index) => ({
-            id: index + 1,
-            comPort: p.path,
-            addrIpv6: 'fe80::1'
-        })));
-    });
-
-    socket.on('getComData', async comPort => {
-        const data = await getComData(comPort);
-        socket.emit('comDataHistory', data);
+    // Gửi dữ liệu packet theo kit
+    socket.on('requestPacketDataByKit', async (kitUnique) => {
+        try {
+            const data = await getPacketDataByKit(kitUnique);
+            socket.emit('packetDataByKit', data);
+        } catch (error) {
+            console.error('Lỗi khi lấy dữ liệu packet theo kit:', error);
+        }
     });
 
     socket.on('sendCli', ({ comPort, command }) => {
         const success = sendCliCommand(comPort, command);
-        //socket.emit('cliResponse', { success, comPort, response: 'Done' });
-    });
-
-    socket.on('requestChartData', async () => {
-        const data = await getAllComDataForCharts();
-        socket.emit('chartData', data);
     });
 
     socket.on('disconnect', () => {
@@ -73,7 +58,6 @@ io.on('connection', socket => {
     });
 });
 
-// Truyền io để sử dụng trong serial.js
 monitorPorts(io, clientComPorts);
 
 const PORT = process.env.SERVER_PORT || 3000;

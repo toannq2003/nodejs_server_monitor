@@ -194,3 +194,35 @@ code {
         height: 150px; /* Giảm chiều cao trên mobile */
     }
 }
+
+
+/* Existing styles... */
+
+/* Packet table styles */
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.table code {
+    font-size: 0.8em;
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    border: 1px solid #dee2e6;
+}
+
+.badge {
+    font-size: 0.75em;
+}
+
+/* Responsive table adjustments */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.8em;
+    }
+    
+    .table th, .table td {
+        padding: 0.5rem 0.25rem;
+    }
+}

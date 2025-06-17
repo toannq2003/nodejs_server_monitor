@@ -23,7 +23,7 @@ async function initializeDatabase() {
 
         // Cấp quyền cho người dùng
         await rootPool.execute(`
-            GRANT ALL PRIVILEGES ON ${process.env.DB_NAME}.* 
+            GRANT ALL PRIVILEGES ON ${process.env.DB_NAME}.*
             TO '${process.env.DB_USER}'@'${process.env.DB_HOST}'
         `);
 
@@ -38,17 +38,22 @@ async function initializeDatabase() {
             database: process.env.DB_NAME
         });
 
-        // Tạo bảng com_data nếu chưa tồn tại
+        // Tạo bảng packet_data mới thay thế com_data
         await pool.execute(`
-            CREATE TABLE IF NOT EXISTS com_data (
+            CREATE TABLE IF NOT EXISTS packet_data (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                com_port VARCHAR(50),
-                addr_ipv6 VARCHAR(50),
-                rssi INT,
-                lqi INT,
-                crc VARCHAR(50),
-                raw_data TEXT,
-                timestamp DATETIME
+                type VARCHAR(10) NOT NULL,
+                packet_length INT NOT NULL,
+                packet_data TEXT NOT NULL,
+                kit_unique VARCHAR(50) NOT NULL,
+                error_code INT NOT NULL,
+                is_ack BOOLEAN NOT NULL,
+                channel INT NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                com_port VARCHAR(50) NOT NULL,
+                INDEX idx_timestamp (timestamp),
+                INDEX idx_kit_unique (kit_unique),
+                INDEX idx_type (type)
             )
         `);
 
@@ -62,30 +67,30 @@ async function initializeDatabase() {
 // Khởi tạo pool khi module được tải
 const poolPromise = initializeDatabase();
 
-async function saveComData({ comPort, addrIpv6, rssi, lqi, crc, rawData }) {
+async function savePacketData({ type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort }) {
     const pool = await poolPromise;
     const query = `
-        INSERT INTO com_data (com_port, addr_ipv6, rssi, lqi, crc, raw_data, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
+        INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
-    await pool.execute(query, [comPort, addrIpv6, rssi, lqi, crc, rawData]);
+    await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort]);
 }
 
-async function getComData(comPort) {
+async function getAllPacketData() {
     const pool = await poolPromise;
     const [rows] = await pool.execute(
-        'SELECT * FROM com_data WHERE com_port = ?',
-        [comPort]
+        'SELECT * FROM packet_data ORDER BY timestamp DESC LIMIT 1000'
     );
     return rows;
 }
 
-async function getAllComDataForCharts() {
+async function getPacketDataByKit(kitUnique) {
     const pool = await poolPromise;
     const [rows] = await pool.execute(
-        'SELECT com_port AS comPort, rssi, lqi, timestamp FROM com_data ORDER BY timestamp'
+        'SELECT * FROM packet_data WHERE kit_unique = ? ORDER BY timestamp DESC',
+        [kitUnique]
     );
     return rows;
 }
 
-module.exports = { saveComData, getComData, getAllComDataForCharts };
+module.exports = { savePacketData, getAllPacketData, getPacketDataByKit };
