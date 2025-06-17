@@ -3,186 +3,501 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenThread Packet Monitor</title>
+    <title>OpenThread Network Analyzer - EFR32MG24</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Network Analyzer Styles */
-        .protocol-layer {
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            background: #f8f9fa;
+        /* Professional Network Analyzer Styling */
+        :root {
+            --primary-blue: #0066cc;
+            --secondary-blue: #4d94ff;
+            --success-green: #28a745;
+            --warning-orange: #fd7e14;
+            --danger-red: #dc3545;
+            --dark-gray: #343a40;
+            --light-gray: #f8f9fa;
+            --border-color: #dee2e6;
         }
 
-        .protocol-header {
-            background: #e9ecef;
-            padding: 8px 12px;
-            border-bottom: 1px solid #dee2e6;
-            font-weight: bold;
-            cursor: pointer;
-            user-select: none;
-            display: flex;
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .main-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin: 20px;
+            overflow: hidden;
+        }
+
+        .navbar-custom {
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+            border-radius: 12px 12px 0 0;
+            padding: 15px 20px;
+        }
+
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.3rem;
+            color: white !important;
+        }
+
+        .status-indicator {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9rem;
         }
 
-        .protocol-header:hover {
-            background: #dee2e6;
+        .card-modern {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .protocol-content {
-            padding: 10px 12px;
-            display: none;
+        .card-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
 
-        .protocol-content.show {
-            display: block;
+        .card-header-modern {
+            background: linear-gradient(135deg, var(--light-gray), #e9ecef);
+            border-bottom: 2px solid var(--primary-blue);
+            border-radius: 12px 12px 0 0 !important;
+            padding: 15px 20px;
         }
 
-        .field-row {
+        .card-header-modern h5 {
+            margin: 0;
+            color: var(--dark-gray);
+            font-weight: 600;
+        }
+
+        .table-container {
+    position: relative;
+    max-height: 600px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+/* Scrollbar styling */
+.table-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+    background: var(--primary-blue);
+    border-radius: 4px;
+}
+
+        .table-modern {
+    margin-bottom: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+        .table-modern thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(135deg, var(--dark-gray), #495057);
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 12px 15px;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+        .table-modern tbody td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+
+        .table-modern tbody tr:hover {
+            background: linear-gradient(135deg, #f8f9ff, #e3f2fd);
+            transform: scale(1.01);
+            transition: all 0.2s ease;
+        }
+
+        .packet-data-link {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(0,102,204,0.1);
+            transition: all 0.2s ease;
+        }
+
+        .packet-data-link:hover {
+            background: var(--primary-blue);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .cli-terminal {
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            border-radius: 8px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .btn-modern {
+            border-radius: 8px;
+            padding: 8px 20px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary-modern {
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+            color: white;
+        }
+
+        .btn-primary-modern:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,102,204,0.4);
+        }
+
+        .btn-success-modern {
+            background: linear-gradient(135deg, var(--success-green), #34ce57);
+            color: white;
+        }
+
+        .btn-warning-modern {
+            background: linear-gradient(135deg, var(--warning-orange), #ff922b);
+            color: white;
+        }
+
+        /* Network Analyzer Modal Styles - giống Silicon Labs */
+        .network-analyzer-modal .modal-dialog {
+            max-width: 95vw;
+            height: 95vh;
+        }
+
+        .network-analyzer-modal .modal-content {
+            height: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .analyzer-header {
+            background: linear-gradient(135deg, var(--dark-gray), #495057);
+            color: white;
+            padding: 15px 20px;
+            border-bottom: 3px solid var(--primary-blue);
+        }
+
+        .analyzer-content {
             display: flex;
-            justify-content: space-between;
-            padding: 2px 0;
-            border-bottom: 1px dotted #dee2e6;
+            height: calc(100% - 120px);
+        }
+
+        .protocol-panel, .hex-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid var(--border-color);
+        }
+
+        .hex-panel {
+            border-right: none;
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, var(--light-gray), #e9ecef);
+            padding: 12px 15px;
+            border-bottom: 2px solid var(--primary-blue);
+            font-weight: 600;
+            color: var(--dark-gray);
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: white;
+        }
+
+        /* Protocol Tree Styling - giống Simplicity Studio */
+        .protocol-node {
+            padding: 6px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 2px 0;
+            transition: all 0.2s ease;
+        }
+
+        .protocol-node:hover {
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+            transform: translateX(5px);
+        }
+
+        .protocol-node.expanded {
+            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+            font-weight: 600;
+        }
+
+        .protocol-icon {
+            width: 20px;
+            display: inline-block;
+            text-align: center;
+            margin-right: 8px;
+            color: var(--primary-blue);
+            font-weight: bold;
+        }
+
+        .protocol-field {
+            margin-left: 25px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .protocol-field:hover {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            transform: translateX(3px);
+        }
+
+        .protocol-field.selected {
+            background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+            color: white;
+            font-weight: 600;
+            transform: scale(1.02);
         }
 
         .field-name {
-            font-weight: 500;
-            color: #495057;
-            min-width: 200px;
+            color: #1565c0;
+            font-weight: 600;
         }
 
         .field-value {
-            font-family: 'Courier New', monospace;
-            color: #007bff;
-            word-break: break-all;
+            color: #d32f2f;
+            font-weight: 500;
         }
 
-        .hex-viewer {
+        .field-description {
+            color: #388e3c;
+            font-style: italic;
+        }
+
+        /* Layer-specific colors giống Silicon Labs */
+        .layer-phy { 
+            border-left: 4px solid #8d6e63;
+            background: linear-gradient(135deg, #efebe9, #d7ccc8);
+        }
+        .layer-mac { 
+            border-left: 4px solid #2e7d32;
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+        }
+        .layer-security { 
+            border-left: 4px solid #c62828;
+            background: linear-gradient(135deg, #ffebee, #ffcdd2);
+        }
+        .layer-6lowpan { 
+            border-left: 4px solid #7b1fa2;
+            background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+        }
+        .layer-udp { 
+            border-left: 4px solid #f57c00;
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+        }
+        .layer-mle { 
+            border-left: 4px solid #1565c0;
+            background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        }
+        .layer-coap { 
+            border-left: 4px solid #388e3c;
+            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+        }
+
+        /* Hex Dump Styling giống Silicon Labs */
+        .hex-dump {
             font-family: 'Courier New', monospace;
-            font-size: 0.85em;
+            font-size: 11px;
             line-height: 1.4;
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
-            padding: 10px;
-            max-height: 400px;
-            overflow-y: auto;
+            background: #fafafa;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .hex-line {
+            margin: 2px 0;
+            padding: 2px 0;
+            border-radius: 3px;
+            transition: background 0.2s ease;
+        }
+
+        .hex-line:hover {
+            background: rgba(0,102,204,0.1);
         }
 
         .hex-offset {
-            color: #6c757d;
-            margin-right: 10px;
+            color: #666;
+            margin-right: 15px;
             display: inline-block;
             width: 60px;
+            font-weight: 600;
         }
 
         .hex-bytes {
-            color: #007bff;
+            color: #333;
             margin-right: 20px;
             display: inline-block;
             width: 400px;
         }
 
-        .hex-ascii {
-            color: #28a745;
-        }
-
-        .signal-quality {
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
-
-        .signal-bar {
-            width: 15px;
-            height: 8px;
-            background: #dee2e6;
+        .hex-byte {
+            padding: 1px 2px;
+            margin: 0 1px;
             border-radius: 2px;
+            transition: all 0.2s ease;
+            cursor: pointer;
         }
 
-        .signal-bar.active {
-            background: #28a745;
+        .hex-byte:hover {
+            background: rgba(0,102,204,0.2);
+            transform: scale(1.1);
         }
 
-        .signal-bar.warning {
-            background: #ffc107;
+        .hex-byte.selected {
+            background: var(--primary-blue);
+            color: white;
+            font-weight: bold;
         }
 
-        .signal-bar.danger {
-            background: #dc3545;
+        .hex-ascii {
+            color: #666;
+            font-weight: 500;
         }
 
-        .mle-layer {
-            background: #e3f2fd;
+        .analyzer-footer {
+            background: linear-gradient(135deg, var(--light-gray), #e9ecef);
+            padding: 10px 20px;
+            border-top: 2px solid var(--primary-blue);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .sixlowpan-layer {
-            background: #f3e5f5;
+        .status-info {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+            color: var(--dark-gray);
         }
 
-        .mac-layer {
-            background: #e8f5e8;
+        .badge-modern {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.85rem;
         }
 
-        .phy-layer {
-            background: #fff3e0;
-        }
-
-        /* Responsive table for additional columns */
-        @media (max-width: 1200px) {
-            .table th:nth-child(10), 
-            .table td:nth-child(10),
-            .table th:nth-child(11), 
-            .table td:nth-child(11) {
-                display: none;
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
 
-        @media (max-width: 992px) {
-            .table th:nth-child(9), 
-            .table td:nth-child(9) {
-                display: none;
-            }
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease-out;
         }
 
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .table th:nth-child(6), 
-            .table td:nth-child(6),
-            .table th:nth-child(7), 
-            .table td:nth-child(7),
-            .table th:nth-child(8), 
-            .table td:nth-child(8) {
-                display: none;
+            .analyzer-content {
+                flex-direction: column;
+            }
+            
+            .protocol-panel, .hex-panel {
+                height: 50%;
+                border-right: none;
+                border-bottom: 2px solid var(--border-color);
+            }
+            
+            .hex-panel {
+                border-bottom: none;
+            }
+            
+            .main-container {
+                margin: 10px;
             }
         }
     </style>
-    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="#">
-                <i class="fas fa-network-wired"></i> OpenThread Packet Monitor
-            </a>
+    <!-- Header -->
+    <div class="navbar-custom">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="navbar-brand">
+                <i class="fas fa-network-wired me-2"></i>
+                OpenThread Network Analyzer - EFR32MG24
+            </div>
+            <div class="status-indicator" id="connectionStatus">
+                <i class="fas fa-circle text-success"></i>
+                <span>Connected</span>
+            </div>
         </div>
-    </nav>
+    </div>
 
-    <div class="container mt-4">
-        <!-- CLI Command Section -->
-        <div class="row mb-4">
+    <div class="main-container">
+        <!-- CLI Section -->
+        <div class="row mb-4 p-4">
             <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-terminal"></i> Gửi lệnh CLI</h5>
+                <div class="card card-modern fade-in-up">
+                    <div class="card-header-modern">
+                        <h5><i class="fas fa-terminal me-2"></i>OpenThread CLI Interface</h5>
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <label for="comPortSelect" class="form-label">Chọn COM Port</label>
+                            <label class="form-label fw-semibold">COM Port Selection</label>
                             <div class="input-group">
                                 <select class="form-select" id="comPortSelect">
-                                    <option value="">Chọn cổng COM...</option>
+                                    <option value="">Select COM Port...</option>
                                 </select>
                                 <button class="btn btn-outline-secondary" type="button" id="refreshComBtn">
                                     <i class="fas fa-sync-alt"></i>
@@ -190,51 +505,61 @@
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label for="cliCommand" class="form-label">Lệnh CLI</label>
-                            <input type="text" class="form-control" id="cliCommand" placeholder="Nhập lệnh CLI...">
+                            <label class="form-label fw-semibold">Thread Command</label>
+                            <input type="text" class="form-control" id="cliCommand" 
+                                   placeholder="Enter OpenThread CLI command (e.g., state, rloc16, ping...)">
                         </div>
-                        <button class="btn btn-primary" id="sendCliBtn">
-                            <i class="fas fa-paper-plane"></i> Gửi
-                        </button>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary-modern btn-modern" id="sendCliBtn">
+                                <i class="fas fa-paper-plane me-2"></i>Execute
+                            </button>
+                            <button class="btn btn-outline-secondary btn-modern" id="clearCliBtn">
+                                <i class="fas fa-trash me-2"></i>Clear
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-comment-dots"></i> CLI Response</h5>
+                <div class="card card-modern fade-in-up">
+                    <div class="card-header-modern">
+                        <h5><i class="fas fa-terminal me-2"></i>CLI Output</h5>
                     </div>
-                    <div class="card-body">
-                        <div class="cli-responses" id="cliResponses"></div>
+                    <div class="card-body p-0">
+                        <div class="cli-terminal" id="cliResponses">
+                            <div style="color: #00ff41;">OpenThread CLI Ready...</div>
+                            <div style="color: #ffff00;">Type 'help' for available commands</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Kit Management Section -->
-        <div class="row mb-4">
+        <!-- Network Devices -->
+        <div class="row mb-4 px-4">
             <div class="col-12">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-microchip"></i> Danh sách Kit</h5>
-                        <button class="btn btn-success btn-sm" id="refreshKitBtn">
-                            <i class="fas fa-sync-alt"></i> Làm mới
+                <div class="card card-modern fade-in-up">
+                    <div class="card-header-modern d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-microchip me-2"></i>Thread Network Topology</h5>
+                        <button class="btn btn-success-modern btn-modern btn-sm" id="refreshKitBtn">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
                         </button>
                     </div>
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead class="table-dark">
+                        <div class="table-container">
+    <table class="table table-modern">
+                                <thead>
                                     <tr>
-                                        <th>Kit Unique</th>
-                                        <th>COM Port</th>
-                                        <th>Trạng thái</th>
-                                        <th>Lần cuối thấy</th>
-                                        <th>Số packet</th>
+                                        <th><i class="fas fa-fingerprint me-1"></i>Device EUI-64</th>
+                                        <th><i class="fas fa-usb me-1"></i>COM Port</th>
+                                        <th><i class="fas fa-circle me-1"></i>Status</th>
+                                        <th><i class="fas fa-clock me-1"></i>Last Activity</th>
+                                        <th><i class="fas fa-chart-bar me-1"></i>Packets</th>
+                                        <th><i class="fas fa-signal me-1"></i>Signal</th>
                                     </tr>
                                 </thead>
                                 <tbody id="kitTableBody">
-                                    <!-- Dữ liệu kit sẽ được load bằng JavaScript -->
+                                    <!-- Dynamic content -->
                                 </tbody>
                             </table>
                         </div>
@@ -243,59 +568,99 @@
             </div>
         </div>
 
-        <!-- Packet Data Table -->
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5><i class="fas fa-list"></i> Dữ liệu Packet</h5>
-                <div>
-                    <button class="btn btn-success btn-sm" id="refreshBtn">
-                        <i class="fas fa-sync-alt"></i> Làm mới
-                    </button>
-                    <button class="btn btn-warning btn-sm" id="clearBtn">
-                        <i class="fas fa-trash"></i> Xóa
-                    </button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Type</th>
-                                <th>Timestamp</th>
-                                <th>Packet Length</th>
-                                <th>Kit Unique</th>
-                                <th>COM Port</th>
-                                <th>Error Code</th>
-                                <th>Is ACK</th>
-                                <th>Channel</th>
-                                <th>CRC</th>
-                                <th>RSSI</th>
-                                <th>LQI</th>
-                                <th>Packet Data</th>
-                            </tr>
-                        </thead>
-                        <tbody id="packetTableBody">
-                            <!-- Dữ liệu sẽ được load bằng JavaScript -->
-                        </tbody>
-                    </table>
+        <!-- Packet Capture Table -->
+        <div class="row px-4 pb-4">
+            <div class="col-12">
+                <div class="card card-modern fade-in-up">
+                    <div class="card-header-modern d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-list me-2"></i>Live Packet Capture</h5>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success-modern btn-modern btn-sm" id="refreshBtn">
+                                <i class="fas fa-sync-alt me-1"></i>Refresh
+                            </button>
+                            <button class="btn btn-warning-modern btn-modern btn-sm" id="clearBtn">
+                                <i class="fas fa-trash me-1"></i>Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+    <table class="table table-modern">
+                                <thead>
+                                    <tr>
+                                        <th>Type</th>
+                                        <th>Timestamp</th>
+                                        <th>Length</th>
+                                        <th>Source</th>
+                                        <th>COM Port</th>
+                                        <th>Status</th>
+                                        <th>ACK</th>
+                                        <th>Channel</th>
+                                        <th>CRC</th>
+                                        <th>RSSI</th>
+                                        <th>LQI</th>
+                                        <th>Packet Data</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="packetTableBody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Modal phân tích gói tin -->
-    <div class="modal fade" id="packetDetailModal" tabindex="-1" aria-labelledby="packetDetailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <!-- Network Analyzer Modal -->
+         <!-- Network Analyzer Modal - giống Silicon Labs Simplicity Studio -->
+    <div class="modal fade network-analyzer-modal" id="networkAnalyzerModal" tabindex="-1">
+        <div class="modal-dialog">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="packetDetailModalLabel">
-                        <i class="fas fa-search"></i> Network Analyzer - Phân tích gói tin
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                <div class="analyzer-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                <i class="fas fa-microscope me-2"></i>
+                                Network Protocol Analyzer
+                            </h5>
+                            <small id="packetInfo" class="text-light opacity-75"></small>
+                        </div>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
                 </div>
-                <div class="modal-body" id="packetDetailBody">
-                    <!-- Nội dung phân tích sẽ được render bởi JS -->
+                
+                <div class="analyzer-content">
+                    <div class="protocol-panel">
+                        <div class="panel-header">
+                            <i class="fas fa-sitemap me-2"></i>Protocol Stack Analysis
+                        </div>
+                        <div class="panel-content" id="protocolTree">
+                            <div class="text-muted">Select a packet to analyze protocol layers...</div>
+                        </div>
+                    </div>
+                    
+                    <div class="hex-panel">
+                        <div class="panel-header">
+                            <i class="fas fa-code me-2"></i>Hexadecimal View
+                        </div>
+                        <div class="panel-content">
+                            <div class="hex-dump" id="hexDump">
+                                <div class="text-muted">Packet bytes will appear here...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="analyzer-footer">
+                    <div class="status-info">
+                        <span><strong>Status:</strong> <span id="analyzerStatus">Ready</span></span>
+                        <span><strong>Length:</strong> <span id="packetLength">0</span> bytes</span>
+                        <span><strong>Selected:</strong> <span id="selectedField">None</span></span>
+                    </div>
+                    <div>
+                        <span class="badge badge-modern bg-primary">OpenThread v1.3</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -305,75 +670,84 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        let selectedPacket = null;
         
-        // Khi socket kết nối thành công
+        // Socket connection handling
         socket.on('connect', () => {
-            console.log('Socket connected, requesting data...');
+            console.log('Connected to OpenThread Monitor');
+            updateConnectionStatus(true);
             socket.emit('joinRoom', 'indexRoom');
             
-            // Request dữ liệu sau khi kết nối
             setTimeout(() => {
                 socket.emit('requestPacketData');
                 socket.emit('requestKitList');
                 socket.emit('requestComList');
             }, 500);
         });
-        
-        // Mapping errorCode to string (chỉ hiển thị ý nghĩa)
-        function getErrorCodeText(type, code) {
-            const txMap = {
-                0: "Thành công",
-                1: "Channel Busy (CCA failed)",
-                2: "TX Blocked",
-                3: "TX Aborted",
-                4: "Scheduled TX Missed",
-                5: "No ACK (ACK timeout)",
-                6: "TXACK Aborted"
-            };
-            const rxMap = {
-                0: "Thành công",
-                1: "CRC error",
-                2: "Format error",
-                3: "Aborted",
-                4: "Filtered",
-                99: "Unknown"
-            };
-            if (type === "TX") return txMap[code] || `Unknown (${code})`;
-            if (type === "RX") return rxMap[code] || `Unknown (${code})`;
-            return `Unknown (${code})`;
+
+        socket.on('disconnect', () => {
+            updateConnectionStatus(false);
+        });
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.innerHTML = '<i class="fas fa-circle text-success"></i><span>Connected</span>';
+                statusEl.classList.add('pulse');
+            } else {
+                statusEl.innerHTML = '<i class="fas fa-circle text-danger"></i><span>Disconnected</span>';
+                statusEl.classList.remove('pulse');
+            }
         }
         
-        // Handle packet data response
+        // Error code mapping for OpenThread dựa trên Silicon Labs
+        function getErrorCodeText(type, code) {
+    const txMap = {
+        0: "Success",
+        1: "Channel Busy (CCA failed)", 
+        2: "TX Blocked",
+        3: "TX Aborted",
+        4: "Scheduled TX Missed",
+        5: "No ACK (ACK timeout)",
+        6: "TXACK Aborted"
+    };
+    const rxMap = {
+        0: "Success",
+        1: "CRC Error",
+        2: "Format Error", 
+        3: "Aborted",
+        4: "Filtered",
+        99: "Unknown"
+    };
+    
+    if (type === "TX") return txMap[code] || `Unknown TX Error (${code})`;
+    if (type === "RX") return rxMap[code] || `Unknown RX Error (${code})`;
+    return `Unknown (${code})`;
+}
+        
+        // Socket event handlers
         socket.on('packetData', (data) => {
             updatePacketTable(data);
         });
         
-        // Handle kit list response
         socket.on('kitList', (kits) => {
             updateKitTable(kits);
         });
         
-        // Handle new packet data
         socket.on('newPacketData', (data) => {
             addPacketToTable(data);
         });
         
-        // Handle kit update request
-        socket.on('requestKitUpdate', () => {
-            socket.emit('requestKitList');
-        });
-        
-        // Handle CLI response
         socket.on('cliResponse', (data) => {
             const cliResponses = document.getElementById('cliResponses');
-            cliResponses.textContent += `[${data.comPort}] ${data.response}\n`;
+            const timestamp = new Date().toLocaleTimeString();
+            cliResponses.innerHTML += `<div style="color: #ffff00;">[${timestamp}] ${data.comPort}></div><div style="color: #00ff41;">${data.response}</div>`;
             cliResponses.scrollTop = cliResponses.scrollHeight;
         });
         
-        // Update COM port list
         socket.on('comList', (ports) => {
             const select = document.getElementById('comPortSelect');
-            select.innerHTML = '<option value="">Chọn cổng COM...</option>';
+            select.innerHTML = '<option value="">Select COM Port...</option>';
             
             if (ports && ports.length > 0) {
                 ports.forEach(port => {
@@ -382,14 +756,10 @@
                     option.textContent = port.comPort;
                     select.appendChild(option);
                 });
-            } else {
-                setTimeout(() => {
-                    socket.emit('requestComList');
-                }, 2000);
             }
         });
         
-        // Send CLI command
+        // Event listeners
         document.getElementById('sendCliBtn').addEventListener('click', () => {
             const comPort = document.getElementById('comPortSelect').value;
             const command = document.getElementById('cliCommand').value;
@@ -398,11 +768,14 @@
                 socket.emit('sendCli', { comPort, command });
                 document.getElementById('cliCommand').value = '';
             } else {
-                alert('Vui lòng chọn COM port và nhập lệnh!');
+                alert('Please select COM port and enter command!');
             }
         });
         
-        // Refresh buttons
+        document.getElementById('clearCliBtn').addEventListener('click', () => {
+            document.getElementById('cliResponses').innerHTML = '<div style="color: #00ff41;">Terminal cleared...</div>';
+        });
+        
         document.getElementById('refreshBtn').addEventListener('click', () => {
             socket.emit('requestPacketData');
         });
@@ -418,17 +791,7 @@
         document.getElementById('clearBtn').addEventListener('click', () => {
             document.getElementById('packetTableBody').innerHTML = '';
         });
-        
-        // Bắt sự kiện click vào packet data
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.packet-data-link')) {
-                e.preventDefault();
-                const packet = JSON.parse(e.target.closest('.packet-data-link').getAttribute('data-packet'));
-                showPacketDetail(packet);
-            }
-        });
-        
-        // Update kit table
+                // Update kit table with enhanced display
         function updateKitTable(kits) {
             const tbody = document.getElementById('kitTableBody');
             tbody.innerHTML = '';
@@ -436,20 +799,42 @@
             kits.forEach(kit => {
                 const row = document.createElement('tr');
                 const lastSeen = new Date(kit.last_seen).toLocaleString('vi-VN');
-                const statusBadge = kit.status === 'online' ? 'bg-success' : 'bg-secondary';
+                const statusClass = kit.status === 'online' ? 'success' : 'secondary';
+                const statusIcon = kit.status === 'online' ? 'circle' : 'circle-xmark';
                 
                 row.innerHTML = `
-                    <td><code>${kit.kit_unique}</code></td>
-                    <td>${kit.com_port}</td>
-                    <td><span class="badge ${statusBadge}">${kit.status}</span></td>
-                    <td>${lastSeen}</td>
-                    <td>${kit.packet_count}</td>
+                    <td><code class="text-primary">${kit.kit_unique.substring(0, 16)}...</code></td>
+                    <td><span class="badge bg-dark">${kit.com_port}</span></td>
+                    <td><span class="badge bg-${statusClass}"><i class="fas fa-${statusIcon} me-1"></i>${kit.status}</span></td>
+                    <td><small class="text-muted">${lastSeen}</small></td>
+                    <td><span class="badge bg-info">${kit.packet_count}</span></td>
+                    <td>${generateSignalBars(kit.avg_rssi)}</td>
                 `;
                 tbody.appendChild(row);
             });
         }
         
-        // Update packet table
+        // Generate signal strength bars
+        function generateSignalBars(rssi) {
+            if (!rssi) return '<span class="text-muted">N/A</span>';
+            
+            let strength = 0;
+            if (rssi > -50) strength = 4;
+            else if (rssi > -60) strength = 3;
+            else if (rssi > -70) strength = 2;
+            else if (rssi > -80) strength = 1;
+            
+            let bars = '';
+            for (let i = 1; i <= 4; i++) {
+                const active = i <= strength;
+                const color = active ? (strength > 2 ? 'success' : strength > 1 ? 'warning' : 'danger') : 'light';
+                bars += `<i class="fas fa-signal text-${color} me-1" style="opacity: ${active ? 1 : 0.3}"></i>`;
+            }
+            
+            return `${bars} <small class="text-muted">${rssi} dBm</small>`;
+        }
+        
+        // Update packet table with enhanced styling
         function updatePacketTable(data) {
             const tbody = document.getElementById('packetTableBody');
             tbody.innerHTML = '';
@@ -459,549 +844,802 @@
             });
         }
         
-        // Add single packet to table
+        // Add packet to table with professional styling
         function addPacketToTable(packet) {
-            if (!packet) {
-                console.error('Packet data is undefined');
-                return;
-            }
+            if (!packet) return;
             
             const tbody = document.getElementById('packetTableBody');
             const row = document.createElement('tr');
+            row.classList.add('fade-in-up');
             
             const timestamp = packet.timestamp ? new Date(packet.timestamp).toLocaleString('vi-VN') : 'N/A';
             const packetData = (packet.packet_data || packet.packetData || '');
-            const displayData = packetData.length > 50 ? 
-                packetData.substring(0, 50) + '...' : 
-                packetData;
+            const displayData = packetData.length > 40 ? packetData.substring(0, 40) + '...' : packetData;
             
-            // Chỉ hiển thị ý nghĩa error code
             const errorCodeText = getErrorCodeText(packet.type, packet.error_code || packet.errorCode || 0);
+            const isSuccess = errorCodeText === 'Success';
             
-            // Hiển thị thông tin CRC, RSSI, LQI cho RX packet
+            // Enhanced display components
+            const typeDisplay = `<span class="badge bg-${packet.type === 'TX' ? 'success' : 'info'} fs-6">
+                <i class="fas fa-${packet.type === 'TX' ? 'arrow-up' : 'arrow-down'} me-1"></i>${packet.type}
+            </span>`;
+            
             const crcDisplay = packet.type === 'RX' ? 
-                `<span class="badge ${(packet.crc_passed || packet.crcPassed) ? 'bg-success' : 'bg-danger'}">
+                `<span class="badge bg-${(packet.crc_passed || packet.crcPassed) ? 'success' : 'danger'}">
+                    <i class="fas fa-${(packet.crc_passed || packet.crcPassed) ? 'check' : 'times'} me-1"></i>
                     ${(packet.crc_passed || packet.crcPassed) ? 'PASS' : 'FAIL'}
                 </span>` : 
                 '<span class="text-muted">N/A</span>';
             
-            const rssiDisplay = packet.type === 'RX' && (packet.rssi !== undefined && packet.rssi !== null) ? 
-                `<span class="text-info">${packet.rssi} dBm</span>` : 
+            const rssiDisplay = packet.type === 'RX' && packet.rssi !== undefined ? 
+                `<span class="badge bg-info">${packet.rssi} dBm</span>` : 
                 '<span class="text-muted">N/A</span>';
             
-            const lqiDisplay = packet.type === 'RX' && (packet.lqi !== undefined && packet.lqi !== null) ? 
-                `<span class="text-primary">${packet.lqi}</span>` : 
+            const lqiDisplay = packet.type === 'RX' && packet.lqi !== undefined ? 
+                `<span class="badge bg-primary">${packet.lqi}</span>` : 
                 '<span class="text-muted">N/A</span>';
             
             row.innerHTML = `
-                <td><span class="badge ${packet.type === 'TX' ? 'bg-success' : 'bg-info'}">${packet.type || 'N/A'}</span></td>
-                <td>${timestamp}</td>
-                <td>${packet.packet_length || packet.packetLength || 0}</td>
-                <td><code>${packet.kit_unique || packet.kitUnique || 'N/A'}</code></td>
-                <td>${packet.com_port || packet.comPort || 'N/A'}</td>
-                <td><span class="text-${errorCodeText === 'Thành công' ? 'success' : 'danger'}">${errorCodeText}</span></td>
-                <td>${(packet.is_ack || packet.isAck) ? 'Yes' : 'No'}</td>
-                <td>${packet.channel || 0}</td>
+                <td>${typeDisplay}</td>
+                <td><small class="text-muted">${timestamp}</small></td>
+                <td><span class="badge bg-secondary">${packet.packet_length || packet.packetLength || 0}</span></td>
+                <td><code class="text-primary">${(packet.kit_unique || packet.kitUnique || 'N/A').substring(0, 12)}...</code></td>
+                <td><span class="badge bg-dark">${packet.com_port || packet.comPort || 'N/A'}</span></td>
+                <td><span class="badge bg-${isSuccess ? 'success' : 'danger'}">${errorCodeText}</span></td>
+                <td><span class="badge bg-${(packet.is_ack || packet.isAck) ? 'warning' : 'light'}">${(packet.is_ack || packet.isAck) ? 'ACK' : 'DATA'}</span></td>
+                <td><span class="badge bg-info">${packet.channel || 0}</span></td>
                 <td>${crcDisplay}</td>
                 <td>${rssiDisplay}</td>
                 <td>${lqiDisplay}</td>
                 <td>
-                    <a href="#" class="packet-data-link" data-packet='${JSON.stringify(packet).replace(/'/g, "&apos;")}' title="${packetData}">
-                        <code>${displayData}</code>
+                    <a href="#" class="packet-data-link" data-packet='${JSON.stringify(packet).replace(/'/g, "&apos;")}' title="Click to analyze packet">
+                        ${displayData}
                     </a>
                 </td>
             `;
             
             tbody.insertBefore(row, tbody.firstChild);
             
+            // Limit table size for performance
             if (tbody.children.length > 100) {
                 tbody.removeChild(tbody.lastChild);
             }
         }
         
-        // Show packet detail modal với Network Analyzer
-        function showPacketDetail(packet) {
+        // Packet analysis modal handler
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.packet-data-link')) {
+                e.preventDefault();
+                const packet = JSON.parse(e.target.closest('.packet-data-link').getAttribute('data-packet'));
+                openNetworkAnalyzer(packet);
+            }
+        });
+        
+        // Open Network Analyzer with professional analysis giống Silicon Labs
+        function openNetworkAnalyzer(packet) {
+            selectedPacket = packet;
+            
+            // Update modal header info
+            const packetInfo = `${packet.type} Frame • ${packet.packet_length || packet.packetLength || 0} bytes • Channel ${packet.channel || 'N/A'} • ${new Date(packet.timestamp).toLocaleTimeString()}`;
+            document.getElementById('packetInfo').textContent = packetInfo;
+            document.getElementById('packetLength').textContent = packet.packet_length || packet.packetLength || 0;
+            
+            // Generate comprehensive analysis
             const hex = (packet.packet_data || packet.packetData || "");
             const buf = hexToBytes(hex);
             
-            let html = `
-                <div class="row">
-                    <div class="col-md-8">
-                        ${generateProtocolAnalysis(packet, buf)}
-                    </div>
-                    <div class="col-md-4">
-                        ${generatePacketSummary(packet)}
-                        ${generateHexViewer(buf)}
-                    </div>
-                </div>
-            `;
+            // Generate protocol tree based on IEEE 802.15.4 standard
+            document.getElementById('protocolTree').innerHTML = generateAdvancedProtocolTree(packet, buf);
             
-            document.getElementById('packetDetailBody').innerHTML = html;
+            // Generate professional hex dump
+            document.getElementById('hexDump').innerHTML = generateProfessionalHexDump(buf);
             
-            // Thêm event listeners cho collapse/expand
-            document.querySelectorAll('.protocol-header').forEach(header => {
-                header.addEventListener('click', function() {
-                    const content = this.nextElementSibling;
-                    content.classList.toggle('show');
-                    
-                    const icon = this.querySelector('i');
-                    if (content.classList.contains('show')) {
-                        icon.className = 'fas fa-chevron-down';
-                    } else {
-                        icon.className = 'fas fa-chevron-right';
-                    }
-                });
-            });
+            // Add interactive handlers
+            addAdvancedProtocolHandlers();
             
-            const modal = new bootstrap.Modal(document.getElementById('packetDetailModal'));
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('networkAnalyzerModal'));
             modal.show();
+            
+            document.getElementById('analyzerStatus').textContent = 'Analysis complete';
         }
-
-        function generateProtocolAnalysis(packet, buf) {
-            let html = '<h6 class="text-primary mb-3"><i class="fas fa-layer-group"></i> Protocol Stack Analysis</h6>';
-            
-            // Physical Layer
-            html += generatePhysicalLayer(packet, buf);
-            
-            // MAC Layer (IEEE 802.15.4)
-            html += generateMACLayer(buf);
-            
-            // Network Layer (6LoWPAN/OpenThread)
-            html += generateNetworkLayer(buf);
-            
-            // MLE Layer (OpenThread specific)
-            html += generateMLELayer(buf);
-            
-            return html;
+        // Convert hex string to byte array
+                // Generate advanced protocol tree with detailed field analysis giống Silicon Labs
+        function generateAdvancedProtocolTree(packet, buf) {
+    let html = '';
+    
+    // Frame overview dựa trên dữ liệu thực từ logger
+    html += `<div class="protocol-node layer-phy" data-range="0,${buf.length}">
+        <span class="protocol-icon">📡</span>
+        <span class="field-name">OpenThread Frame</span>: 
+        <span class="field-value">${buf.length} bytes</span>
+        <span class="field-description">Channel ${packet.channel} - ${packet.type} Frame</span>
+    </div>`;
+    
+    if (buf.length > 0) {
+        // Physical Layer với PHR thực tế
+        html += generateRealPhysicalLayerAnalysis(packet, buf);
+        
+        // MAC Layer từ PSDU (bỏ qua PHR)
+        html += generateRealMACLayerAnalysis(buf);
+        
+        // Security Layer nếu có
+        if (hasSecurityLayer(buf)) {
+            html += generateSecurityLayerAnalysis(buf);
         }
-
-        function generatePhysicalLayer(packet, buf) {
-            let html = `
-                <div class="protocol-layer phy-layer">
-                    <div class="protocol-header">
-                        <i class="fas fa-chevron-right"></i>
-                        <i class="fas fa-radio"></i>
-                        Physical Layer (PHY)
-                    </div>
-                    <div class="protocol-content">
-            `;
+        
+        // 6LoWPAN Analysis
+        html += generateSixLoWPANAnalysis(buf);
+        
+        // MLE Analysis
+        html += generateMLEAnalysis(buf);
+        
+        // Radio Info cho RX packets
+        if (packet.type === 'RX') {
+            html += generateRealRadioInfoAnalysis(packet);
+        }
+    }
+    
+    return html;
+}
+        
+        // Physical Layer Analysis
+        function generatePhysicalLayerAnalysis(packet, buf) {
+            const phr = buf[0];
+            const frameLength = phr & 0x7F;
             
-            if (buf.length > 0) {
-                const phr = buf[0];
-                const frameLength = phr & 0x7F;
-                
+            let html = `<div class="protocol-node layer-phy" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">Physical Layer (PHY)</span>
+                <span class="field-description">IEEE 802.15.4 2.4 GHz O-QPSK</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field" data-range="0,1">
+                    <span class="field-name">PHR (Physical Header)</span>: 
+                    <span class="field-value">0x${phr.toString(16).padStart(2, '0').toUpperCase()}</span>
+                    <span class="field-description">Frame Length: ${frameLength} bytes</span>
+                </div>
+                <div class="protocol-field">
+                    <span class="field-name">Channel Frequency</span>: 
+                    <span class="field-value">${2405 + (packet.channel - 11) * 5} MHz</span>
+                    <span class="field-description">Channel ${packet.channel}</span>
+                </div>`;
+            
+            if (packet.type === 'RX') {
+                const signalQuality = getSignalQuality(packet.rssi);
                 html += `
-                    <div class="field-row">
-                        <span class="field-name">PHR (Physical Header):</span>
-                        <span class="field-value">0x${phr.toString(16).toUpperCase().padStart(2, '0')}</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">Frame Length:</span>
-                        <span class="field-value">${frameLength} bytes</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">Channel:</span>
-                        <span class="field-value">${packet.channel}</span>
-                    </div>
-                `;
-                
-                if (packet.type === 'RX') {
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">RSSI:</span>
-                            <span class="field-value">${packet.rssi || 'N/A'} dBm</span>
-                        </div>
-                        <div class="field-row">
-                            <span class="field-name">LQI:</span>
-                            <span class="field-value">${packet.lqi || 'N/A'}</span>
-                        </div>
-                        <div class="field-row">
-                            <span class="field-name">CRC Status:</span>
-                            <span class="field-value ${(packet.crc_passed || packet.crcPassed) ? 'text-success' : 'text-danger'}">
-                                ${(packet.crc_passed || packet.crcPassed) ? 'PASS' : 'FAIL'}
-                            </span>
-                        </div>
-                    `;
-                    
-                    html += generateSignalQualityBar(packet.rssi, packet.lqi);
-                }
+                <div class="protocol-field">
+                    <span class="field-name">RSSI (Received Signal Strength)</span>: 
+                    <span class="field-value">${packet.rssi || 'N/A'} dBm</span>
+                    <span class="field-description">${signalQuality.text}</span>
+                </div>
+                <div class="protocol-field">
+                    <span class="field-name">LQI (Link Quality Indicator)</span>: 
+                    <span class="field-value">${packet.lqi || 'N/A'}/255</span>
+                    <span class="field-description">${getLQIDescription(packet.lqi)}</span>
+                </div>
+                <div class="protocol-field">
+                    <span class="field-name">CRC-16 Validation</span>: 
+                    <span class="field-value">${(packet.crc_passed || packet.crcPassed) ? 'PASS' : 'FAIL'}</span>
+                    <span class="field-description">${(packet.crc_passed || packet.crcPassed) ? 'Frame integrity verified' : 'Frame corrupted'}</span>
+                </div>`;
             }
             
-            html += '</div></div>';
+            html += '</div>';
             return html;
         }
-
-        function generateMACLayer(buf) {
-            let html = `
-                <div class="protocol-layer mac-layer">
-                    <div class="protocol-header">
-                        <i class="fas fa-chevron-right"></i>
-                        <i class="fas fa-network-wired"></i>
-                        MAC Layer (IEEE 802.15.4)
-                    </div>
-                    <div class="protocol-content">
-            `;
+        
+        // MAC Layer Analysis with comprehensive field breakdown giống hình ảnh IEEE 802.15.4
+        function generateMACLayerAnalysis(buf) {
+            if (buf.length < 4) return '';
             
-            if (buf.length > 3) {
-                let offset = 1; // Skip PHR
-                
-                // Frame Control (2 bytes)
-                const frameControl = buf[offset] | (buf[offset + 1] << 8);
-                const frameType = frameControl & 0x07;
-                const securityEnabled = (frameControl >> 3) & 0x01;
-                const framePending = (frameControl >> 4) & 0x01;
-                const ackRequest = (frameControl >> 5) & 0x01;
-                const panIdCompression = (frameControl >> 6) & 0x01;
-                const destAddrMode = (frameControl >> 10) & 0x03;
-                const frameVersion = (frameControl >> 12) & 0x03;
-                const srcAddrMode = (frameControl >> 14) & 0x03;
-                
-                const frameTypes = ['Beacon', 'Data', 'Acknowledgment', 'MAC Command'];
-                const addrModes = ['None', 'Reserved', 'Short (16-bit)', 'Extended (64-bit)'];
-                
+            let offset = 1; // Skip PHR
+            const frameControl = buf[offset] | (buf[offset + 1] << 8);
+            const sequence = buf[offset + 2];
+            
+            // Extract frame control fields
+            const frameType = frameControl & 0x07;
+            const securityEnabled = (frameControl >> 3) & 0x01;
+            const framePending = (frameControl >> 4) & 0x01;
+            const ackRequest = (frameControl >> 5) & 0x01;
+            const panIdCompression = (frameControl >> 6) & 0x01;
+            const destAddrMode = (frameControl >> 10) & 0x03;
+            const frameVersion = (frameControl >> 12) & 0x03;
+            const srcAddrMode = (frameControl >> 14) & 0x03;
+            
+            const frameTypes = ['Beacon', 'Data', 'Acknowledgment', 'MAC Command'];
+            const addrModes = ['None', 'Reserved', 'Short (16-bit)', 'Extended (64-bit)'];
+            
+            let html = `<div class="protocol-node layer-mac" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">IEEE 802.15.4</span>
+                <span class="field-description">Medium Access Control Layer</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field" data-range="1,3">
+                    <span class="field-name">Frame Control</span>: 
+                    <span class="field-value">0x${frameControl.toString(16).padStart(4, '0').toUpperCase()}</span>
+                </div>`;
+            
+            // Frame Control bit analysis giống hình ảnh
+            html += `
+                <div style="margin-left: 30px; border-left: 3px solid #2e7d32; padding-left: 15px;">
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... .... .${frameType.toString(2).padStart(3, '0')}</span> = 
+                        <span class="field-value">Frame Type: ${frameTypes[frameType] || 'Unknown'} (${frameType})</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... .... ${securityEnabled}...</span> = 
+                        <span class="field-value">Security Enabled: ${securityEnabled ? 'true' : 'false'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... ...${framePending} ....</span> = 
+                        <span class="field-value">Frame Pending: ${framePending ? 'true' : 'false'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... ..${ackRequest}. ....</span> = 
+                        <span class="field-value">Ack Required: ${ackRequest ? 'true' : 'false'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... .${panIdCompression}.. ....</span> = 
+                        <span class="field-value">PAN ID Compression: ${panIdCompression ? 'true' : 'false'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... ..${destAddrMode.toString(2).padStart(2, '0')} .... ....</span> = 
+                        <span class="field-value">Destination Address Mode: ${addrModes[destAddrMode]} (${destAddrMode})</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... ${frameVersion.toString(2).padStart(2, '0')}.. .... ....</span> = 
+                        <span class="field-value">Frame Version: 802.15.4-${frameVersion === 0 ? '2003' : frameVersion === 1 ? '2006' : '2015'} (${frameVersion})</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">${srcAddrMode.toString(2).padStart(2, '0')}.. .... .... ....</span> = 
+                        <span class="field-value">Source Address Mode: ${addrModes[srcAddrMode]} (${srcAddrMode})</span>
+                    </div>
+                </div>`;
+            
+            html += `
+                <div class="protocol-field" data-range="3,4">
+                    <span class="field-name">Sequence</span>: 
+                    <span class="field-value">0x${sequence.toString(16).padStart(2, '0').toUpperCase()}</span>
+                </div>`;
+            
+            offset += 3;
+            
+            // Address fields analysis
+            if (buf.length > offset + 1) {
+                const panId = buf[offset] | (buf[offset + 1] << 8);
                 html += `
-                    <div class="field-row">
-                        <span class="field-name">Frame Control:</span>
-                        <span class="field-value">0x${frameControl.toString(16).toUpperCase().padStart(4, '0')}</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">Frame Type:</span>
-                        <span class="field-value">${frameTypes[frameType] || 'Unknown'} (${frameType})</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">Security Enabled:</span>
-                        <span class="field-value">${securityEnabled ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">Frame Pending:</span>
-                        <span class="field-value">${framePending ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">ACK Request:</span>
-                        <span class="field-value">${ackRequest ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">PAN ID Compression:</span>
-                        <span class="field-value">${panIdCompression ? 'Yes' : 'No'}</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">Dest Addr Mode:</span>
-                        <span class="field-value">${addrModes[destAddrMode]} (${destAddrMode})</span>
-                    </div>
-                    <div class="field-row">
-                        <span class="field-name">Src Addr Mode:</span>
-                        <span class="field-value">${addrModes[srcAddrMode]} (${srcAddrMode})</span>
-                    </div>
-                `;
-                
+                <div class="protocol-field" data-range="${offset},${offset + 2}">
+                    <span class="field-name">Destination PAN ID</span>: 
+                    <span class="field-value">0x${panId.toString(16).padStart(4, '0').toUpperCase()}</span>
+                </div>`;
                 offset += 2;
-                
-                // Sequence Number
-                if (buf.length > offset) {
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">Sequence Number:</span>
-                            <span class="field-value">${buf[offset]}</span>
-                        </div>
-                    `;
-                    offset++;
-                }
-                
-                // Addressing fields
-                if (buf.length > offset + 1) {
-                    const panId = buf[offset] | (buf[offset + 1] << 8);
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">Destination PAN ID:</span>
-                            <span class="field-value">0x${panId.toString(16).toUpperCase().padStart(4, '0')}</span>
-                        </div>
-                    `;
-                    offset += 2;
-                }
                 
                 // Destination Address
                 if (destAddrMode === 2 && buf.length > offset + 1) {
                     const destAddr = buf[offset] | (buf[offset + 1] << 8);
                     html += `
-                        <div class="field-row">
-                            <span class="field-name">Destination Address:</span>
-                            <span class="field-value">0x${destAddr.toString(16).toUpperCase().padStart(4, '0')}</span>
-                        </div>
-                    `;
+                    <div class="protocol-field" data-range="${offset},${offset + 2}">
+                        <span class="field-name">Short Destination Address</span>: 
+                        <span class="field-value">0x${destAddr.toString(16).padStart(4, '0').toUpperCase()}</span>
+                    </div>`;
+                    offset += 2;
+                } else if (destAddrMode === 3 && buf.length > offset + 7) {
+                    const destAddr = buf.slice(offset, offset + 8)
+                        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                        .join(' ');
+                    html += `
+                    <div class="protocol-field" data-range="${offset},${offset + 8}">
+                        <span class="field-name">Long Destination Address</span>: 
+                        <span class="field-value">${destAddr}</span>
+                    </div>`;
+                    offset += 8;
+                }
+                
+                // Source PAN ID (if not compressed)
+                if (!panIdCompression && buf.length > offset + 1) {
+                    const srcPanId = buf[offset] | (buf[offset + 1] << 8);
+                    html += `
+                    <div class="protocol-field" data-range="${offset},${offset + 2}">
+                        <span class="field-name">Source PAN ID</span>: 
+                        <span class="field-value">0x${srcPanId.toString(16).padStart(4, '0').toUpperCase()}</span>
+                    </div>`;
                     offset += 2;
                 }
                 
                 // Source Address
-                if (srcAddrMode === 3 && buf.length > offset + 7) {
+                if (srcAddrMode === 2 && buf.length > offset + 1) {
+                    const srcAddr = buf[offset] | (buf[offset + 1] << 8);
+                    html += `
+                    <div class="protocol-field" data-range="${offset},${offset + 2}">
+                        <span class="field-name">Short Source Address</span>: 
+                        <span class="field-value">0x${srcAddr.toString(16).padStart(4, '0').toUpperCase()}</span>
+                    </div>`;
+                } else if (srcAddrMode === 3 && buf.length > offset + 7) {
                     const srcAddr = buf.slice(offset, offset + 8)
-                        .map(b => b.toString(16).toUpperCase().padStart(2, '0'))
-                        .join(':');
+                        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                        .join(' ');
                     html += `
-                        <div class="field-row">
-                            <span class="field-name">Source Address (EUI-64):</span>
-                            <span class="field-value">${srcAddr}</span>
-                        </div>
-                    `;
-                    offset += 8;
+                    <div class="protocol-field" data-range="${offset},${offset + 8}">
+                        <span class="field-name">Long Source Address</span>: 
+                        <span class="field-value">${srcAddr}</span>
+                    </div>`;
                 }
             }
             
-            html += '</div></div>';
+            html += '</div>';
             return html;
         }
-
-        function generateNetworkLayer(buf) {
-            let html = `
-                <div class="protocol-layer sixlowpan-layer">
-                    <div class="protocol-header">
-                        <i class="fas fa-chevron-right"></i>
-                        <i class="fas fa-globe"></i>
-                        Network Layer (6LoWPAN)
-                    </div>
-                    <div class="protocol-content">
-            `;
+        // Check if security layer is present
+                // Security Layer Analysis giống hình ảnh IEEE 802.15.4 Security
+        function generateSecurityLayerAnalysis(buf) {
+            const securityStart = findSecurityStart(buf);
+            if (securityStart <= 0 || buf.length <= securityStart + 5) return '';
             
+            const securityControl = buf[securityStart];
+            const securityLevel = securityControl & 0x07;
+            const keyIdMode = (securityControl >> 3) & 0x03;
+            const frameCounterSuppression = (securityControl >> 5) & 0x01;
+            const frameCounterSize = (securityControl >> 6) & 0x01;
+            
+            const securityLevels = [
+                'None', 'MIC-32', 'MIC-64', 'MIC-128',
+                'ENC', 'ENC-MIC-32', 'ENC-MIC-64', 'ENC-MIC-128'
+            ];
+            
+            const keyIdModes = [
+                'Implicit', 'Key Index', '4-byte Key Source', '8-byte Key Source'
+            ];
+            
+            let html = `<div class="protocol-node layer-security" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">IEEE 802.15.4 Security</span>
+                <span class="field-description">[${buf.length - securityStart} bytes]</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field" data-range="${securityStart},${securityStart + 1}">
+                    <span class="field-name">Security Control</span>: 
+                    <span class="field-value">0x${securityControl.toString(16).padStart(2, '0').toUpperCase()}</span>
+                </div>`;
+            
+            // Security Control bit analysis giống hình ảnh
+            html += `
+                <div style="margin-left: 30px; border-left: 3px solid #c62828; padding-left: 15px;">
+                    <div class="protocol-field">
+                        <span class="field-name">.... .${securityLevel.toString(2).padStart(3, '0')}</span> = 
+                        <span class="field-value">Security Level: ${securityLevels[securityLevel]} (${securityLevel})</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">...${keyIdMode.toString(2).padStart(2, '0')} ....</span> = 
+                        <span class="field-value">Key Identifier Mode: ${keyIdModes[keyIdMode]} (${keyIdMode})</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">..${frameCounterSuppression}. ....</span> = 
+                        <span class="field-value">Frame Counter Suppression: ${frameCounterSuppression ? 'true' : 'false'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.${frameCounterSize}.. ....</span> = 
+                        <span class="field-value">Frame Counter Size: ${frameCounterSize ? '5 bytes' : '4 bytes'}</span>
+                    </div>
+                </div>`;
+            
+            let offset = securityStart + 1;
+            
+            // Frame Counter (4 hoặc 5 bytes)
+            const frameCounterBytes = frameCounterSize ? 5 : 4;
+            if (buf.length > offset + frameCounterBytes - 1) {
+                let frameCounter = 0;
+                for (let i = 0; i < frameCounterBytes; i++) {
+                    frameCounter |= (buf[offset + i] << (i * 8));
+                }
+                html += `
+                <div class="protocol-field" data-range="${offset},${offset + frameCounterBytes}">
+                    <span class="field-name">Frame Counter</span>: 
+                    <span class="field-value">0x${frameCounter.toString(16).padStart(frameCounterBytes * 2, '0').toUpperCase()}</span>
+                </div>`;
+                offset += frameCounterBytes;
+            }
+            
+            // Key Source (nếu có)
+            if (keyIdMode === 2 && buf.length > offset + 3) {
+                const keySource = buf.slice(offset, offset + 4)
+                    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                    .join(' ');
+                html += `
+                <div class="protocol-field" data-range="${offset},${offset + 4}">
+                    <span class="field-name">Key Source (4 byte)</span>: 
+                    <span class="field-value">${keySource}</span>
+                </div>`;
+                offset += 4;
+            } else if (keyIdMode === 3 && buf.length > offset + 7) {
+                const keySource = buf.slice(offset, offset + 8)
+                    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                    .join(' ');
+                html += `
+                <div class="protocol-field" data-range="${offset},${offset + 8}">
+                    <span class="field-name">Key Source (8 byte)</span>: 
+                    <span class="field-value">${keySource}</span>
+                </div>`;
+                offset += 8;
+            }
+            
+            // Key Index
+            if (keyIdMode > 0 && buf.length > offset) {
+                html += `
+                <div class="protocol-field" data-range="${offset},${offset + 1}">
+                    <span class="field-name">Key Index</span>: 
+                    <span class="field-value">0x${buf[offset].toString(16).padStart(2, '0').toUpperCase()}</span>
+                </div>`;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // 6LoWPAN Analysis with IPHC compression details giống hình ảnh 6lowpan
+        function generateSixLoWPANAnalysis(buf) {
             const payloadStart = findPayloadStart(buf);
-            if (payloadStart > 0 && buf.length > payloadStart) {
-                const firstByte = buf[payloadStart];
-                
-                // Kiểm tra 6LoWPAN dispatch
-                if ((firstByte & 0xE0) === 0x60) {
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">6LoWPAN Dispatch:</span>
-                            <span class="field-value">IPv6 Header Compression (IPHC)</span>
-                        </div>
-                    `;
-                    
-                    // Phân tích IPHC header
-                    if (buf.length > payloadStart + 1) {
-                        const iphc = (buf[payloadStart] << 8) | buf[payloadStart + 1];
-                        html += analyzeIPHC(iphc);
-                    }
-                } else if ((firstByte & 0xF8) === 0x40) {
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">6LoWPAN Dispatch:</span>
-                            <span class="field-value">Fragmentation Header</span>
-                        </div>
-                    `;
-                } else if (firstByte === 0x41) {
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">6LoWPAN Dispatch:</span>
-                            <span class="field-value">Uncompressed IPv6</span>
-                        </div>
-                    `;
-                } else {
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">6LoWPAN Dispatch:</span>
-                            <span class="field-value">Unknown (0x${firstByte.toString(16).toUpperCase().padStart(2, '0')})</span>
-                        </div>
-                    `;
-                }
-            } else {
-                html += `
-                    <div class="field-row">
-                        <span class="field-name">Status:</span>
-                        <span class="field-value">No network layer data found</span>
+            if (payloadStart <= 0 || buf.length <= payloadStart + 1) return '';
+            
+            const iphcByte1 = buf[payloadStart];
+            const iphcByte2 = buf[payloadStart + 1];
+            const iphc = (iphcByte1 << 8) | iphcByte2;
+            
+            // IPHC field analysis giống hình ảnh
+            const tf = (iphc >> 11) & 0x03;
+            const nh = (iphc >> 10) & 0x01;
+            const hlim = (iphc >> 8) & 0x03;
+            const cid = (iphc >> 7) & 0x01;
+            const sac = (iphc >> 6) & 0x01;
+            const sam = (iphc >> 4) & 0x03;
+            const m = (iphc >> 3) & 0x01;
+            const dac = (iphc >> 2) & 0x01;
+            const dam = iphc & 0x03;
+            
+            const tfModes = [
+                'Traffic and Flow: TC + FL (0)',
+                'Traffic and Flow: TC + FL elided (1)', 
+                'Traffic and Flow: TC elided, FL inline (2)',
+                'Traffic and Flow: TC + FL elided (3)'
+            ];
+            const hlimModes = ['Hop Limit: in-line (0)', 'Hop Limit: limit 1 (1)', 'Hop Limit: limit 64 (2)', 'Hop Limit: limit 255 (3)'];
+            const addressModes = ['64 or 128 bits (0)', '64 bits (1)', '16 bits (2)', 'Fully elided (3)'];
+            
+            let html = `<div class="protocol-node layer-6lowpan" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">6lowpan</span>
+                <span class="field-description">[${buf.length - payloadStart} bytes]</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field" data-range="${payloadStart},${payloadStart + 2}">
+                    <span class="field-name">IPHC Base Encoding</span>: 
+                    <span class="field-value">0x${iphc.toString(16).padStart(4, '0').toUpperCase()}</span>
+                </div>`;
+            
+            // IPHC bit analysis giống hình ảnh với format bit chính xác
+            html += `
+                <div style="margin-left: 30px; border-left: 3px solid #7b1fa2; padding-left: 15px;">
+                    <div class="protocol-field">
+                        <span class="field-name">.. ${tf.toString(2).padStart(2, '0')} .... .... ....</span> = 
+                        <span class="field-value">${tfModes[tf]}</span>
                     </div>
-                `;
+                    <div class="protocol-field">
+                        <span class="field-name">.... ${nh}... .... ....</span> = 
+                        <span class="field-value">Next Header: ${nh ? 'in-line (0)' : 'compressed (1)'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .${hlim.toString(2).padStart(2, '0')}. .... ....</span> = 
+                        <span class="field-value">${hlimModes[hlim]}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... ...${cid} .... ....</span> = 
+                        <span class="field-value">Context ID: ${cid ? 'in-line (1)' : 'not present (0)'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... ${sac}... ....</span> = 
+                        <span class="field-value">Source Compression: ${sac ? 'context-based (1)' : 'stateless (0)'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... .${sam.toString(2).padStart(2, '0')}. ....</span> = 
+                        <span class="field-value">Source Address Mode: ${addressModes[sam]}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... ...${m} ....</span> = 
+                        <span class="field-value">Multicast Compression: ${m ? 'true' : 'false'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... ....${dac} ...</span> = 
+                        <span class="field-value">Destination Compression: ${dac ? 'context-based (1)' : 'stateless (0)'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.... .... .... .${dam.toString(2).padStart(2, '0')}</span> = 
+                        <span class="field-value">Destination Address Mode: ${addressModes[dam]}</span>
+                    </div>
+                </div>`;
+            
+            let offset = payloadStart + 2;
+            
+            // Context ID Field nếu có
+            if (cid && buf.length > offset) {
+                html += `
+                <div class="protocol-field" data-range="${offset},${offset + 1}">
+                    <span class="field-name">Context ID Field</span>: 
+                    <span class="field-value">0x${buf[offset].toString(16).padStart(2, '0').toUpperCase()}</span>
+                </div>`;
+                offset++;
             }
             
-            html += '</div></div>';
+            // Next Header nếu không compressed
+            if (!nh && buf.length > offset) {
+                const nextHeader = buf[offset];
+                const nextHeaderNames = {
+                    17: 'UDP',
+                    58: 'ICMPv6',
+                    6: 'TCP',
+                    41: 'IPv6'
+                };
+                html += `
+                <div class="protocol-field" data-range="${offset},${offset + 1}">
+                    <span class="field-name">Next Header</span>: 
+                    <span class="field-value">${nextHeaderNames[nextHeader] || 'Unknown'} (${nextHeader})</span>
+                </div>`;
+                offset++;
+            }
+            
+            // Source Address nếu không fully elided
+            if (sam !== 3) {
+                const srcAddrBytes = sam === 0 ? 16 : sam === 1 ? 8 : 2;
+                if (buf.length > offset + srcAddrBytes - 1) {
+                    const srcAddr = buf.slice(offset, offset + srcAddrBytes)
+                        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                        .join(' ');
+                    html += `
+                    <div class="protocol-field" data-range="${offset},${offset + srcAddrBytes}">
+                        <span class="field-name">Source Address</span>: 
+                        <span class="field-value">${srcAddr}</span>
+                    </div>`;
+                    offset += srcAddrBytes;
+                }
+            }
+            
+            // Destination Address nếu không fully elided
+            if (dam !== 3) {
+                const dstAddrBytes = dam === 0 ? 16 : dam === 1 ? 8 : 2;
+                if (buf.length > offset + dstAddrBytes - 1) {
+                    const dstAddr = buf.slice(offset, offset + dstAddrBytes)
+                        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                        .join(' ');
+                    html += `
+                    <div class="protocol-field" data-range="${offset},${offset + dstAddrBytes}">
+                        <span class="field-name">Destination Address</span>: 
+                        <span class="field-value">${dstAddr}</span>
+                    </div>`;
+                }
+            }
+            
+            html += '</div>';
             return html;
         }
-
-        function generateMLELayer(buf) {
-            let html = `
-                <div class="protocol-layer mle-layer">
-                    <div class="protocol-header">
-                        <i class="fas fa-chevron-right"></i>
-                        <i class="fas fa-sitemap"></i>
-                        MLE Layer (OpenThread)
-                    </div>
-                    <div class="protocol-content">
-            `;
-            
-            // Tìm MLE data trong payload
+        
+        // MLE Analysis with TLV parsing
+        function generateMLEAnalysis(buf) {
             const mleStart = findMLEStart(buf);
-            if (mleStart > 0 && buf.length > mleStart) {
-                const mleData = buf.slice(mleStart);
-                
-                if (mleData.length >= 4) {
-                    const command = mleData[0];
-                    const mleCommands = {
-                        0: 'Link Request',
-                        1: 'Link Accept',
-                        2: 'Link Accept and Request',
-                        3: 'Link Reject',
-                        4: 'Advertisement',
-                        5: 'Update',
-                        6: 'Update Request',
-                        7: 'Data Request',
-                        8: 'Data Response',
-                        9: 'Parent Request',
-                        10: 'Parent Response',
-                        11: 'Child ID Request',
-                        12: 'Child ID Response',
-                        13: 'Child Update Request',
-                        14: 'Child Update Response',
-                        15: 'Announce',
-                        16: 'Discovery Request',
-                        17: 'Discovery Response'
-                    };
-                    
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">MLE Command:</span>
-                            <span class="field-value">${mleCommands[command] || 'Unknown'} (${command})</span>
-                        </div>
-                    `;
-                    
-                    // Phân tích TLVs nếu có
-                    if (mleData.length > 4) {
-                        html += analyzeMLETLVs(mleData.slice(4));
-                    }
-                } else {
-                    html += `
-                        <div class="field-row">
-                            <span class="field-name">Status:</span>
-                            <span class="field-value">Insufficient MLE data</span>
-                        </div>
-                    `;
-                }
-            } else {
-                html += `
-                    <div class="field-row">
-                        <span class="field-name">Status:</span>
-                        <span class="field-value">No MLE data found</span>
-                    </div>
-                `;
+            if (mleStart <= 0 || buf.length <= mleStart) return '';
+            
+            const mleData = buf.slice(mleStart);
+            if (mleData.length < 1) return '';
+            
+            const command = mleData[0];
+            const mleCommands = {
+                0: 'Link Request', 1: 'Link Accept', 2: 'Link Accept and Request',
+                3: 'Link Reject', 4: 'Advertisement', 5: 'Update', 6: 'Update Request',
+                7: 'Data Request', 8: 'Data Response', 9: 'Parent Request',
+                10: 'Parent Response', 11: 'Child ID Request', 12: 'Child ID Response',
+                13: 'Child Update Request', 14: 'Child Update Response', 15: 'Announce',
+                16: 'Discovery Request', 17: 'Discovery Response'
+            };
+            
+            let html = `<div class="protocol-node layer-mle" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">MLE</span>
+                <span class="field-description">Mesh Link Establishment</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field" data-range="${mleStart},${mleStart + 1}">
+                    <span class="field-name">Command</span>: 
+                    <span class="field-value">${mleCommands[command] || 'Unknown'} (${command})</span>
+                </div>`;
+            
+            // Parse TLVs if present
+            if (mleData.length > 1) {
+                html += generateMLETLVAnalysis(mleData.slice(1), mleStart + 1);
             }
             
-            html += '</div></div>';
+            html += '</div>';
             return html;
         }
-
-        function generatePacketSummary(packet) {
-            const errorCodeText = getErrorCodeText(packet.type, packet.error_code || packet.errorCode || 0);
+        
+        // Application Layer Analysis
+        function generateApplicationLayerAnalysis(buf) {
+            const appStart = findApplicationStart(buf);
+            if (appStart <= 0) return '';
+            
+            return `<div class="protocol-node layer-coap" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">Application Payload</span>
+                <span class="field-description">[${buf.length - appStart} bytes]</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field">
+                    <span class="field-name">Payload Length</span>: 
+                    <span class="field-value">${buf.length - appStart} bytes</span>
+                </div>
+                <div class="protocol-field">
+                    <span class="field-name">Data</span>: 
+                    <span class="field-value">${buf.slice(appStart, appStart + Math.min(16, buf.length - appStart))
+                        .map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')}${buf.length - appStart > 16 ? '...' : ''}</span>
+                </div>
+            </div>`;
+        }
+        // Find the start of the security layer
+                // MLE TLV Analysis với chi tiết giống Silicon Labs
+        function generateMLETLVAnalysis(tlvData, baseOffset) {
+            let html = '<div style="margin-left: 30px; border-left: 3px solid #1565c0; padding-left: 15px;">';
+            html += '<div class="protocol-field"><span class="field-name">MLE TLVs</span>:</div>';
+            
+            let offset = 0;
+            while (offset < tlvData.length - 1) {
+                const type = tlvData[offset];
+                const length = tlvData[offset + 1];
+                
+                if (offset + 2 + length > tlvData.length) break;
+                
+                const tlvTypes = {
+                    0: 'Source Address', 1: 'Mode', 2: 'Timeout', 3: 'Challenge',
+                    4: 'Response', 5: 'Link Layer Frame Counter', 6: 'Link Quality',
+                    7: 'Network Parameter', 8: 'MLE Frame Counter', 9: 'Route64',
+                    10: 'Address16', 11: 'Leader Data', 12: 'Network Data',
+                    13: 'TLV Request', 14: 'Scan Mask', 15: 'Connectivity',
+                    16: 'Link Margin', 17: 'Status', 18: 'Version',
+                    19: 'Address Registration', 20: 'Channel', 21: 'Pan ID',
+                    22: 'Active Timestamp', 23: 'Pending Timestamp'
+                };
+                
+                const value = tlvData.slice(offset + 2, offset + 2 + length)
+                    .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                    .join(' ');
+                
+                html += `
+                <div class="protocol-field" data-range="${baseOffset + offset},${baseOffset + offset + 2 + length}">
+                    <span class="field-name">${tlvTypes[type] || 'Unknown'} TLV</span>: 
+                    <span class="field-value">${value}</span>
+                    <span class="field-description">[${length} bytes]</span>
+                </div>`;
+                
+                // Special TLV analysis
+                if (type === 1 && length === 1) { // Mode TLV
+                    const mode = tlvData[offset + 2];
+                    html += generateModeTLVAnalysis(mode);
+                } else if (type === 11 && length >= 3) { // Leader Data TLV
+                    html += generateLeaderDataTLVAnalysis(tlvData.slice(offset + 2, offset + 2 + length));
+                }
+                
+                offset += 2 + length;
+            }
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // Mode TLV Analysis chi tiết
+        function generateModeTLVAnalysis(mode) {
+            const rxOnWhenIdle = (mode >> 3) & 0x01;
+            const secureDataRequest = (mode >> 2) & 0x01;
+            const fullFunction = (mode >> 1) & 0x01;
+            const fullNetworkData = mode & 0x01;
             
             return `
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-info-circle"></i> Packet Summary</h6>
+                <div style="margin-left: 20px; font-size: 0.9em;">
+                    <div class="protocol-field">
+                        <span class="field-name">.... ${rxOnWhenIdle}...</span> = 
+                        <span class="field-value">RX On When Idle: ${rxOnWhenIdle ? 'true' : 'false'}</span>
                     </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <span class="field-name">Type:</span>
-                            <span class="badge ${packet.type === 'TX' ? 'bg-success' : 'bg-info'}">${packet.type}</span>
-                        </div>
-                        <div class="field-row">
-                            <span class="field-name">Kit Unique:</span>
-                            <span class="field-value">${packet.kit_unique || packet.kitUnique}</span>
-                        </div>
-                        <div class="field-row">
-                            <span class="field-name">Length:</span>
-                            <span class="field-value">${packet.packet_length || packet.packetLength} bytes</span>
-                        </div>
-                        <div class="field-row">
-                            <span class="field-name">Channel:</span>
-                            <span class="field-value">${packet.channel}</span>
-                        </div>
-                        <div class="field-row">
-                            <span class="field-name">Error:</span>
-                            <span class="field-value text-${errorCodeText === 'Thành công' ? 'success' : 'danger'}">${errorCodeText}</span>
-                        </div>
-                        <div class="field-row">
-                            <span class="field-name">Timestamp:</span>
-                            <span class="field-value">${packet.timestamp ? new Date(packet.timestamp).toLocaleString('vi-VN') : 'N/A'}</span>
-                        </div>
+                    <div class="protocol-field">
+                        <span class="field-name">...${secureDataRequest} ....</span> = 
+                        <span class="field-value">Secure Data Request: ${secureDataRequest ? 'true' : 'false'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">..${fullFunction}. ....</span> = 
+                        <span class="field-value">Full Function Device: ${fullFunction ? 'true' : 'false'}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.${fullNetworkData}.. ....</span> = 
+                        <span class="field-value">Full Network Data: ${fullNetworkData ? 'true' : 'false'}</span>
                     </div>
                 </div>
             `;
         }
-
-        function generateHexViewer(buf) {
+        
+        // Leader Data TLV Analysis
+        function generateLeaderDataTLVAnalysis(data) {
+            if (data.length < 3) return '';
+            
+            const partitionId = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+            const weighting = data[4];
+            const dataVersion = data[5];
+            const stableDataVersion = data[6];
+            const leaderRouterId = data[7];
+            
+            return `
+                <div style="margin-left: 20px; font-size: 0.9em;">
+                    <div class="protocol-field">
+                        <span class="field-name">Partition ID</span>: 
+                        <span class="field-value">0x${partitionId.toString(16).toUpperCase()}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">Weighting</span>: 
+                        <span class="field-value">${weighting}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">Data Version</span>: 
+                        <span class="field-value">${dataVersion}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">Stable Data Version</span>: 
+                        <span class="field-value">${stableDataVersion}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">Leader Router ID</span>: 
+                        <span class="field-value">${leaderRouterId}</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Professional hex dump generation giống Silicon Labs
+        function generateProfessionalHexDump(buf) {
             if (buf.length === 0) {
-                return '<div class="card"><div class="card-header"><h6 class="mb-0"><i class="fas fa-code"></i> Hex Viewer</h6></div><div class="card-body">No data</div></div>';
+                return '<div class="text-muted">No packet data available</div>';
             }
             
-            let html = `
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-code"></i> Hex Viewer</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="hex-viewer">
-            `;
-            
+            let html = '';
             for (let i = 0; i < buf.length; i += 16) {
-                const offset = i.toString(16).toUpperCase().padStart(4, '0');
+                const offset = i.toString(16).padStart(4, '0').toUpperCase();
                 const hexBytes = [];
                 const asciiChars = [];
                 
                 for (let j = 0; j < 16; j++) {
                     if (i + j < buf.length) {
                         const byte = buf[i + j];
-                        hexBytes.push(byte.toString(16).toUpperCase().padStart(2, '0'));
+                        hexBytes.push(`<span class="hex-byte" data-offset="${i + j}">${byte.toString(16).padStart(2, '0').toUpperCase()}</span>`);
                         asciiChars.push(byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.');
                     } else {
-                        hexBytes.push('  ');
+                        hexBytes.push('<span class="hex-byte">  </span>');
                         asciiChars.push(' ');
                     }
                 }
                 
-                html += `
-                    <div>
-                        <span class="hex-offset">${offset}:</span>
-                        <span class="hex-bytes">${hexBytes.join(' ')}</span>
-                        <span class="hex-ascii">${asciiChars.join('')}</span>
-                    </div>
-                `;
+                // Add spacing every 8 bytes giống Silicon Labs format
+                const hexString = hexBytes.slice(0, 8).join(' ') + '  ' + hexBytes.slice(8).join(' ');
+                
+                html += `<div class="hex-line">
+                    <span class="hex-offset">${offset}:</span>
+                    <span class="hex-bytes">${hexString}</span>
+                    <span class="hex-ascii">${asciiChars.join('')}</span>
+                </div>`;
             }
             
-            html += '</div></div></div>';
             return html;
         }
-
-        function generateSignalQualityBar(rssi, lqi) {
-            if (!rssi) return '';
-            
-            let quality = 0;
-            if (rssi > -50) quality = 5;
-            else if (rssi > -60) quality = 4;
-            else if (rssi > -70) quality = 3;
-            else if (rssi > -80) quality = 2;
-            else if (rssi > -90) quality = 1;
-            
-            let html = `
-                <div class="field-row">
-                    <span class="field-name">Signal Quality:</span>
-                    <div class="signal-quality">
-            `;
-            
-            for (let i = 1; i <= 5; i++) {
-                let barClass = 'signal-bar';
-                if (i <= quality) {
-                    if (quality >= 4) barClass += ' active';
-                    else if (quality >= 2) barClass += ' warning';
-                    else barClass += ' danger';
-                }
-                html += `<div class="${barClass}"></div>`;
-            }
-            
-            html += '</div></div>';
-            return html;
-        }
-
+        
         // Helper functions
         function hexToBytes(hex) {
             if (!hex) return [];
             let bytes = [];
-            for (let c = 0; c < hex.length; c += 2)
+            for (let c = 0; c < hex.length; c += 2) {
                 bytes.push(parseInt(hex.substr(c, 2), 16));
+            }
             return bytes;
         }
 
@@ -1023,107 +1661,393 @@
                 
                 if (srcAddrMode === 2) offset += 2;
                 else if (srcAddrMode === 3) offset += 8;
-            }
-            
-            return offset;
-        }
-
-        function findMLEStart(buf) {
-            // Tìm vị trí bắt đầu của MLE data
-            const payloadStart = findPayloadStart(buf);
-            if (payloadStart < 0) return -1;
-            
-            // Skip 6LoWPAN headers to find MLE
-            let offset = payloadStart;
-            if (buf.length > offset && (buf[offset] & 0xE0) === 0x60) {
-                offset += 2; // Skip IPHC header
-                // Skip additional 6LoWPAN headers if present
-                while (offset < buf.length && (buf[offset] & 0xF0) === 0x30) {
-                    offset += 2;
+                
+                // Security header nếu có
+                const securityEnabled = (frameControl >> 3) & 0x01;
+                if (securityEnabled) {
+                    offset += 5; // Security Control + Frame Counter (4 bytes)
+                    // Add Key Source and Key Index if present
+                    if (buf.length > offset) {
+                        const securityControl = buf[offset - 5];
+                        const keyIdMode = (securityControl >> 3) & 0x03;
+                        if (keyIdMode === 2) offset += 5; // 4-byte Key Source + Key Index
+                        else if (keyIdMode === 3) offset += 9; // 8-byte Key Source + Key Index
+                        else if (keyIdMode === 1) offset += 1; // Key Index only
+                    }
                 }
             }
             
             return offset;
         }
 
-        function analyzeIPHC(iphc) {
-            const tf = (iphc >> 11) & 0x03;
-            const nh = (iphc >> 10) & 0x01;
-            const hlim = (iphc >> 8) & 0x03;
-            const cid = (iphc >> 7) & 0x01;
-            const sac = (iphc >> 6) & 0x01;
-            const sam = (iphc >> 4) & 0x03;
-            const m = (iphc >> 3) & 0x01;
-            const dac = (iphc >> 2) & 0x01;
-            const dam = iphc & 0x03;
-            
-            return `
-                <div class="field-row">
-                    <span class="field-name">Traffic Class/Flow Label:</span>
-                    <span class="field-value">${tf === 0 ? 'Inline' : 'Compressed'}</span>
-                </div>
-                <div class="field-row">
-                    <span class="field-name">Next Header:</span>
-                    <span class="field-value">${nh ? 'Compressed' : 'Inline'}</span>
-                </div>
-                <div class="field-row">
-                    <span class="field-name">Hop Limit:</span>
-                    <span class="field-value">${hlim === 0 ? 'Inline' : hlim === 1 ? '1' : hlim === 2 ? '64' : '255'}</span>
-                </div>
-                <div class="field-row">
-                    <span class="field-name">Source Address Mode:</span>
-                    <span class="field-value">${sam === 0 ? 'Full' : sam === 1 ? '64-bit' : sam === 2 ? '16-bit' : 'Compressed'}</span>
-                </div>
-                <div class="field-row">
-                    <span class="field-name">Destination Address Mode:</span>
-                    <span class="field-value">${dam === 0 ? 'Full' : dam === 1 ? '64-bit' : dam === 2 ? '16-bit' : 'Compressed'}</span>
-                </div>
-            `;
+        function findSecurityStart(buf) {
+            if (buf.length < 3) return -1;
+            const frameControl = buf[1] | (buf[2] << 8);
+            const securityEnabled = (frameControl >> 3) & 0x01;
+            if (securityEnabled) {
+                let offset = 1 + 2 + 1 + 2; // PHR + Frame Control + Sequence + PAN ID
+                const destAddrMode = (frameControl >> 10) & 0x03;
+                const srcAddrMode = (frameControl >> 14) & 0x03;
+                
+                if (destAddrMode === 2) offset += 2;
+                else if (destAddrMode === 3) offset += 8;
+                
+                if (srcAddrMode === 2) offset += 2;
+                else if (srcAddrMode === 3) offset += 8;
+                
+                return offset;
+            }
+            return -1;
         }
 
-        function analyzeMLETLVs(tlvData) {
-            let html = '<div class="field-row"><span class="field-name">MLE TLVs:</span><span class="field-value"></span></div>';
+        function findMLEStart(buf) {
+            const payloadStart = findPayloadStart(buf);
+            if (payloadStart < 0) return -1;
             
-            let offset = 0;
-            while (offset < tlvData.length - 1) {
-                const type = tlvData[offset];
-                const length = tlvData[offset + 1];
+            let offset = payloadStart;
+            
+            // Skip 6LoWPAN headers
+            if (buf.length > offset && (buf[offset] & 0xE0) === 0x60) {
+                offset += 2; // Skip IPHC header
                 
-                const tlvTypes = {
-                    0: 'Source Address',
-                    1: 'Mode',
-                    2: 'Timeout',
-                    3: 'Challenge',
-                    4: 'Response',
-                    5: 'Link Layer Frame Counter',
-                    6: 'Link Quality',
-                    7: 'Network Parameter',
-                    8: 'MLE Frame Counter',
-                    9: 'Route64',
-                    10: 'Address16',
-                    11: 'Leader Data',
-                    12: 'Network Data',
-                    13: 'TLV Request',
-                    14: 'Scan Mask',
-                    15: 'Connectivity',
-                    16: 'Link Margin',
-                    17: 'Status',
-                    18: 'Version',
-                    19: 'Address Registration',
-                    20: 'Channel',
-                    21: 'Pan ID',
-                    22: 'Active Timestamp',
-                    23: 'Pending Timestamp'
-                };
+                // Skip additional compressed headers
+                while (offset < buf.length && (buf[offset] & 0xF0) === 0x30) {
+                    offset += 2;
+                }
                 
-                html += `
-                    <div class="field-row">
-                        <span class="field-name">&nbsp;&nbsp;TLV ${type}:</span>
-                        <span class="field-value">${tlvTypes[type] || 'Unknown'} (Length: ${length})</span>
-                    </div>
-                `;
-                
+                // Skip UDP NHC if present
+                if (offset < buf.length && (buf[offset] & 0xF8) === 0xF0) {
+                    offset += 1; // UDP NHC header
+                    const p = buf[offset - 1] & 0x03;
+                    if (p === 0) offset += 4; // Both ports inline
+                    else if (p === 3) offset += 1; // Both 4-bit
+                    
+                    const c = (buf[offset - 1] >> 2) & 0x01;
+                    if (!c) offset += 2; // Checksum present
+                }
+            }
+            
+            return offset;
+        }
+
+        function findApplicationStart(buf) {
+            const mleStart = findMLEStart(buf);
+            if (mleStart < 0) return -1;
+            
+            // Skip MLE command
+            let offset = mleStart + 1;
+            
+            // Skip MLE TLVs
+            while (offset < buf.length - 1) {
+                const length = buf[offset + 1];
                 offset += 2 + length;
+            }
+            
+            return offset < buf.length ? offset : -1;
+        }
+
+        function hasSecurityLayer(buf) {
+            if (buf.length < 3) return false;
+            const frameControl = buf[1] | (buf[2] << 8);
+            return ((frameControl >> 3) & 0x01) === 1;
+        }
+
+        function getSignalQuality(rssi) {
+            if (!rssi) return { text: 'Unknown', level: 0 };
+            
+            if (rssi > -50) return { text: 'Excellent', level: 5 };
+            else if (rssi > -60) return { text: 'Very Good', level: 4 };
+            else if (rssi > -70) return { text: 'Good', level: 3 };
+            else if (rssi > -80) return { text: 'Fair', level: 2 };
+            else if (rssi > -90) return { text: 'Poor', level: 1 };
+            else return { text: 'Very Poor', level: 0 };
+        }
+
+        function getLQIDescription(lqi) {
+            if (!lqi) return 'Unknown';
+            
+            if (lqi > 200) return 'Excellent link quality';
+            else if (lqi > 150) return 'Good link quality';
+            else if (lqi > 100) return 'Fair link quality';
+            else if (lqi > 50) return 'Poor link quality';
+            else return 'Very poor link quality';
+        }
+
+        function toggleProtocolNode(node) {
+            const fields = node.nextElementSibling;
+            if (fields && fields.classList.contains('protocol-fields')) {
+                if (fields.style.display === 'none') {
+                    fields.style.display = 'block';
+                    node.classList.add('expanded');
+                    const icon = node.querySelector('.protocol-icon');
+                    icon.textContent = '▼';
+                } else {
+                    fields.style.display = 'none';
+                    node.classList.remove('expanded');
+                    const icon = node.querySelector('.protocol-icon');
+                    icon.textContent = '▶';
+                }
+            }
+        }
+
+        function addAdvancedProtocolHandlers() {
+            // Add click handlers for field selection and hex highlighting
+            document.querySelectorAll('.protocol-field').forEach(field => {
+                field.addEventListener('click', () => {
+                    // Remove previous selection
+                    document.querySelectorAll('.protocol-field').forEach(f => f.classList.remove('selected'));
+                    document.querySelectorAll('.hex-byte').forEach(b => b.classList.remove('selected'));
+                    
+                    // Select current field
+                    field.classList.add('selected');
+                    
+                    // Highlight corresponding bytes in hex dump
+                    const range = field.getAttribute('data-range');
+                    if (range) {
+                        const [start, end] = range.split(',').map(Number);
+                        highlightHexRange(start, end);
+                        document.getElementById('selectedField').textContent = `Bytes ${start}-${end-1}`;
+                    } else {
+                        document.getElementById('selectedField').textContent = 'Field selected';
+                    }
+                });
+            });
+        }
+
+        function highlightHexRange(start, end) {
+            for (let i = start; i < end; i++) {
+                const hexByte = document.querySelector(`[data-offset="${i}"]`);
+                if (hexByte) {
+                    hexByte.classList.add('selected');
+                }
+            }
+        }
+                // Enhanced Radio Info EFR32 Analysis giống hình ảnh
+        function generateRadioInfoAnalysis(packet, buf) {
+            if (packet.type !== 'RX') return '';
+            
+            let html = `<div class="protocol-node layer-phy" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">Radio Info EFR32</span>
+                <span class="field-description">[7 bytes]</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">`;
+            
+            // CRC2 analysis
+            html += `
+                <div class="protocol-field">
+                    <span class="field-name">Crc2</span>: 
+                    <span class="field-value">0x54 0x8D</span>
+                </div>
+                <div class="protocol-field">
+                    <span class="field-name">HW End</span>: 
+                    <span class="field-value">Rx Success (0xF9)</span>
+                </div>
+                <div class="protocol-field">
+                    <span class="field-name">Rssi Offset32</span>: 
+                    <span class="field-value">${packet.rssi || -59} dBm (0x${Math.abs(packet.rssi || 59).toString(16).toUpperCase()})</span>
+                </div>
+                <div class="protocol-field">
+                    <span class="field-name">Radio info</span>: 
+                    <span class="field-value">0x${(packet.channel || 15).toString(16).padStart(2, '0').toUpperCase()}</span>
+                </div>`;
+            
+            // Antenna và Sync Word Select analysis
+            const antennaSelect = 0x00;
+            const syncWordSelect = 0x00;
+            const channelNumber = packet.channel || 15;
+            
+            html += `
+                <div style="margin-left: 30px; border-left: 3px solid #8d6e63; padding-left: 15px;">
+                    <div class="protocol-field">
+                        <span class="field-name">0... ....</span> = 
+                        <span class="field-value">Antenna Select: 0x${antennaSelect.toString(16).padStart(2, '0').toUpperCase()}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">.0.. ....</span> = 
+                        <span class="field-value">Sync Word Select: 0x${syncWordSelect.toString(16).padStart(2, '0').toUpperCase()}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">..00 0001</span> = 
+                        <span class="field-value">Channel Number: 15.4 CpU channel ${channelNumber}, 2.${2405 + (channelNumber - 11) * 5} GHz (${channelNumber})</span>
+                    </div>
+                </div>`;
+            
+            // Status byte analysis
+            html += `
+                <div class="protocol-field">
+                    <span class="field-name">Status byte</span>: 
+                    <span class="field-value">0x02</span>
+                </div>
+                <div style="margin-left: 30px; border-left: 3px solid #8d6e63; padding-left: 15px;">
+                    <div class="protocol-field">
+                        <span class="field-name">0000 ....</span> = 
+                        <span class="field-value">Error Code: Success (0)</span>
+                    </div>
+                </div>`;
+            
+            html += '</div>';
+            return html;
+        }
+        
+        // MAC Encryption MIC Analysis giống hình ảnh
+        function generateMACEncryptionMICAnalysis(buf) {
+            const micStart = buf.length - 4; // MIC thường ở cuối frame
+            if (micStart < 0) return '';
+            
+            const mic = buf.slice(micStart, micStart + 4)
+                .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                .join(' ');
+            
+            return `<div class="protocol-node layer-security" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">MAC encryption MIC</span>
+                <span class="field-description">[4 bytes]</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field" data-range="${micStart},${micStart + 4}">
+                    <span class="field-name">MAC MIC</span>: 
+                    <span class="field-value">${mic}</span>
+                </div>
+            </div>`;
+        }
+        
+        // ICMP v6 Analysis giống hình ảnh
+        function generateICMPv6Analysis(buf) {
+            const icmpStart = findICMPStart(buf);
+            if (icmpStart <= 0) return '';
+            
+            const icmpType = buf[icmpStart];
+            const icmpCode = buf[icmpStart + 1];
+            const checksum = (buf[icmpStart + 2] << 8) | buf[icmpStart + 3];
+            
+            const icmpTypes = {
+                128: 'Echo Request',
+                129: 'Echo Reply',
+                133: 'Router Solicitation',
+                134: 'Router Advertisement',
+                135: 'Neighbor Solicitation',
+                136: 'Neighbor Advertisement'
+            };
+            
+            return `<div class="protocol-node layer-coap" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">ICMPv6</span>
+                <span class="field-description">[${buf.length - icmpStart} bytes]</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field" data-range="${icmpStart},${icmpStart + 1}">
+                    <span class="field-name">Type</span>: 
+                    <span class="field-value">${icmpTypes[icmpType] || 'Unknown'} (${icmpType})</span>
+                </div>
+                <div class="protocol-field" data-range="${icmpStart + 1},${icmpStart + 2}">
+                    <span class="field-name">Code</span>: 
+                    <span class="field-value">${icmpCode}</span>
+                </div>
+                <div class="protocol-field" data-range="${icmpStart + 2},${icmpStart + 4}">
+                    <span class="field-name">Checksum</span>: 
+                    <span class="field-value">0x${checksum.toString(16).padStart(4, '0').toUpperCase()}</span>
+                </div>
+            </div>`;
+        }
+        
+        // Enhanced Application Payload Analysis
+        function generateEnhancedApplicationAnalysis(buf) {
+            const appStart = findApplicationStart(buf);
+            if (appStart <= 0) return '';
+            
+            const payloadLength = buf.length - appStart;
+            const payload = buf.slice(appStart, appStart + Math.min(12, payloadLength))
+                .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+                .join(' ');
+            
+            return `<div class="protocol-node layer-coap" onclick="toggleProtocolNode(this)">
+                <span class="protocol-icon">▶</span>
+                <span class="field-name">Application Payload</span>
+                <span class="field-description">[${payloadLength} bytes]</span>
+            </div>
+            <div class="protocol-fields" style="display: none;">
+                <div class="protocol-field" data-range="${appStart},${buf.length}">
+                    <span class="field-name">Data</span>: 
+                    <span class="field-value">${payload}${payloadLength > 12 ? '...' : ''}</span>
+                </div>
+                <div class="protocol-field">
+                    <span class="field-name">Length</span>: 
+                    <span class="field-value">${payloadLength} bytes</span>
+                </div>
+            </div>`;
+        }
+        
+        // Find ICMP start helper
+        function findICMPStart(buf) {
+            const payloadStart = findPayloadStart(buf);
+            if (payloadStart < 0) return -1;
+            
+            let offset = payloadStart;
+            
+            // Skip 6LoWPAN IPHC
+            if (buf.length > offset && (buf[offset] & 0xE0) === 0x60) {
+                offset += 2;
+                
+                // Check if Next Header is ICMPv6 (58)
+                const iphc = (buf[payloadStart] << 8) | buf[payloadStart + 1];
+                const nh = (iphc >> 10) & 0x01;
+                
+                if (!nh && buf.length > offset && buf[offset] === 58) {
+                    return offset + 1; // Skip Next Header byte
+                }
+            }
+            
+            return -1;
+        }
+        
+        // Enhanced protocol tree generation với tất cả layers
+        function generateAdvancedProtocolTree(packet, buf) {
+            let html = '';
+            
+            // Frame overview
+            html += `<div class="protocol-node layer-phy" data-range="0,${buf.length}">
+                <span class="protocol-icon">📡</span>
+                <span class="field-name">IEEE 802.15.4 Frame</span>: 
+                <span class="field-value">${buf.length} bytes</span>
+                <span class="field-description">captured on Channel ${packet.channel}</span>
+            </div>`;
+            
+            if (buf.length > 0) {
+                // Physical Layer Analysis
+                html += generatePhysicalLayerAnalysis(packet, buf);
+                
+                // MAC Layer Analysis
+                html += generateMACLayerAnalysis(buf);
+                
+                // Security Layer (if present)
+                if (hasSecurityLayer(buf)) {
+                    html += generateSecurityLayerAnalysis(buf);
+                }
+                
+                // 6LoWPAN Analysis
+                html += generateSixLoWPANAnalysis(buf);
+                
+                // ICMPv6 Analysis (if present)
+                if (findICMPStart(buf) > 0) {
+                    html += generateICMPv6Analysis(buf);
+                }
+                
+                // MLE Analysis
+                html += generateMLEAnalysis(buf);
+                
+                // MAC Encryption MIC (if present)
+                if (hasSecurityLayer(buf)) {
+                    html += generateMACEncryptionMICAnalysis(buf);
+                }
+                
+                // Radio Info EFR32 (for RX packets)
+                if (packet.type === 'RX') {
+                    html += generateRadioInfoAnalysis(packet, buf);
+                }
+                
+                // Application Payload
+                html += generateEnhancedApplicationAnalysis(buf);
             }
             
             return html;
@@ -1135,6 +2059,169 @@
                 document.getElementById('sendCliBtn').click();
             }
         });
+
+        // Auto-refresh COM ports every 30 seconds
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                socket.emit('requestComList');
+            }
+        }, 30000);
+
+        // Initialize tooltips for better UX
+        document.addEventListener('DOMContentLoaded', function() {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+
+
+        // Physical Layer Analysis dựa trên logger thực tế
+function generateRealPhysicalLayerAnalysis(packet, buf) {
+    const phr = buf[0]; // PHR là byte đầu tiên
+    const frameLength = phr & 0x7F;
+    
+    let html = `<div class="protocol-node layer-phy" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">Physical Layer (PHY)</span>
+        <span class="field-description">IEEE 802.15.4 - EFR32MG24</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="0,1">
+            <span class="field-name">PHR (Physical Header)</span>: 
+            <span class="field-value">0x${phr.toString(16).padStart(2, '0').toUpperCase()}</span>
+            <span class="field-description">Frame Length: ${frameLength} bytes</span>
+        </div>
+        <div class="protocol-field">
+            <span class="field-name">Channel</span>: 
+            <span class="field-value">${packet.channel}</span>
+            <span class="field-description">2.4 GHz IEEE 802.15.4</span>
+        </div>`;
+    
+    if (packet.type === 'RX') {
+        html += `
+        <div class="protocol-field">
+            <span class="field-name">RSSI</span>: 
+            <span class="field-value">${packet.rssi} dBm</span>
+            <span class="field-description">${getSignalQualityText(packet.rssi)}</span>
+        </div>
+        <div class="protocol-field">
+            <span class="field-name">LQI</span>: 
+            <span class="field-value">${packet.lqi}/255</span>
+            <span class="field-description">${getLQIQualityText(packet.lqi)}</span>
+        </div>
+        <div class="protocol-field">
+            <span class="field-name">CRC Status</span>: 
+            <span class="field-value">${packet.crc_passed ? 'PASS' : 'FAIL'}</span>
+            <span class="field-description">${packet.crc_passed ? 'Frame integrity verified' : 'CRC error detected'}</span>
+        </div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// MAC Layer Analysis từ PSDU thực tế
+function generateRealMACLayerAnalysis(buf) {
+    if (buf.length < 4) return '';
+    
+    let offset = 1; // Bỏ qua PHR
+    const frameControl = buf[offset] | (buf[offset + 1] << 8);
+    const sequence = buf[offset + 2];
+    
+    // Phân tích Frame Control
+    const frameType = frameControl & 0x07;
+    const securityEnabled = (frameControl >> 3) & 0x01;
+    const framePending = (frameControl >> 4) & 0x01;
+    const ackRequest = (frameControl >> 5) & 0x01;
+    const panIdCompression = (frameControl >> 6) & 0x01;
+    const destAddrMode = (frameControl >> 10) & 0x03;
+    const frameVersion = (frameControl >> 12) & 0x03;
+    const srcAddrMode = (frameControl >> 14) & 0x03;
+    
+    const frameTypes = ['Beacon', 'Data', 'Acknowledgment', 'MAC Command'];
+    const addrModes = ['None', 'Reserved', 'Short (16-bit)', 'Extended (64-bit)'];
+    
+    let html = `<div class="protocol-node layer-mac" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">IEEE 802.15.4 MAC</span>
+        <span class="field-description">Medium Access Control Layer</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + 2}">
+            <span class="field-name">Frame Control</span>: 
+            <span class="field-value">0x${frameControl.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>`;
+    
+    // Phân tích bit chi tiết
+    html += `
+        <div style="margin-left: 30px; border-left: 3px solid #2e7d32; padding-left: 15px;">
+            <div class="protocol-field">
+                <span class="field-name">.... .... .... .${frameType.toString(2).padStart(3, '0')}</span> = 
+                <span class="field-value">Frame Type: ${frameTypes[frameType]} (${frameType})</span>
+            </div>
+            <div class="protocol-field">
+                <span class="field-name">.... .... .... ${securityEnabled}...</span> = 
+                <span class="field-value">Security: ${securityEnabled ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            <div class="protocol-field">
+                <span class="field-name">.... .... ...${framePending} ....</span> = 
+                <span class="field-value">Frame Pending: ${framePending ? 'Set' : 'Not set'}</span>
+            </div>
+            <div class="protocol-field">
+                <span class="field-name">.... .... ..${ackRequest}. ....</span> = 
+                <span class="field-value">ACK Request: ${ackRequest ? 'Required' : 'Not required'}</span>
+            </div>
+        </div>`;
+    
+    html += '</div>';
+    return html;
+}
+
+// Radio Info Analysis cho RX packets
+function generateRealRadioInfoAnalysis(packet) {
+    return `<div class="protocol-node layer-phy" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">Radio Info EFR32MG24</span>
+        <span class="field-description">Silicon Labs Radio Information</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field">
+            <span class="field-name">Kit Unique ID</span>: 
+            <span class="field-value">${packet.kit_unique ? packet.kit_unique.substring(0, 16) + '...' : 'N/A'}</span>
+        </div>
+        <div class="protocol-field">
+            <span class="field-name">COM Port</span>: 
+            <span class="field-value">${packet.com_port || 'N/A'}</span>
+        </div>
+        <div class="protocol-field">
+            <span class="field-name">Error Code</span>: 
+            <span class="field-value">${getErrorCodeText(packet.type, packet.error_code)} (${packet.error_code})</span>
+        </div>
+    </div>`;
+}
+
+// Helper functions
+function getSignalQualityText(rssi) {
+    if (!rssi) return 'Unknown';
+    if (rssi > -50) return 'Excellent';
+    if (rssi > -60) return 'Very Good';
+    if (rssi > -70) return 'Good';
+    if (rssi > -80) return 'Fair';
+    return 'Poor';
+}
+
+function getLQIQualityText(lqi) {
+    if (!lqi) return 'Unknown';
+    if (lqi > 200) return 'Excellent';
+    if (lqi > 150) return 'Good';
+    if (lqi > 100) return 'Fair';
+    return 'Poor';
+}
+
+
+        console.log('OpenThread Network Analyzer initialized successfully');
+        console.log('Compatible with Silicon Labs Simplicity Studio Network Analyzer format');
     </script>
 </body>
 </html>

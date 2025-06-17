@@ -120,7 +120,7 @@ async function connectToPort(path, io, clientComPorts) {
 
                             if (endPos === -1) break;
 
-                            const stringData = buffer.subarray(offset, endPos).toString();
+                            const stringData = buffer.subarray(0, endPos).toString();
                             console.log("String data:", stringData);
                             
                             // Gửi CLI response về web
