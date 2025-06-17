@@ -37,6 +37,20 @@ io.on('connection', socket => {
         }
     });
 
+    // Thêm handler cho requestComList
+    socket.on('requestComList', async () => {
+        try {
+            const ports = Array.from(connectedPorts.values());
+            socket.emit('comList', ports.map((p, index) => ({
+                id: index + 1,
+                comPort: p.path,
+                addrIpv6: 'fe80::1'
+            })));
+        } catch (error) {
+            console.error('Lỗi khi gửi danh sách COM:', error);
+        }
+    });
+
     // Gửi danh sách kit khi client yêu cầu
     socket.on('requestKitList', async () => {
         try {
