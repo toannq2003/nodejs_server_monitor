@@ -49,6 +49,36 @@
             </div>
         </div>
 
+        <!-- Kit Management Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>Danh sách Kit</h5>
+                        <button class="btn btn-success btn-sm" id="refreshKitBtn">Làm mới</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Kit Unique</th>
+                                        <th>COM Port</th>
+                                        <th>Trạng thái</th>
+                                        <th>Lần cuối thấy</th>
+                                        <th>Số packet</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kitTableBody">
+                                    <!-- Dữ liệu kit sẽ được load bằng JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Packet Data Table -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -63,22 +93,39 @@
                     <table class="table table-striped table-hover">
                         <thead class="table-dark">
                             <tr>
-                                <th>ID</th>
                                 <th>Type</th>
                                 <th>Timestamp</th>
                                 <th>Packet Length</th>
                                 <th>Kit Unique</th>
+                                <th>COM Port</th>
                                 <th>Error Code</th>
                                 <th>Is ACK</th>
                                 <th>Channel</th>
+                                <th>CRC</th>
+                                <th>RSSI</th>
+                                <th>LQI</th>
                                 <th>Packet Data</th>
-                                <th>COM Port</th>
                             </tr>
                         </thead>
                         <tbody id="packetTableBody">
                             <!-- Dữ liệu sẽ được load bằng JavaScript -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal phân tích gói tin -->
+    <div class="modal fade" id="packetDetailModal" tabindex="-1" aria-labelledby="packetDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="packetDetailModalLabel">Network Analyzer - Phân tích gói tin</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body" id="packetDetailBody">
+                    <!-- Nội dung phân tích sẽ được render bởi JS -->
                 </div>
             </div>
         </div>
@@ -92,17 +139,52 @@
         // Join room
         socket.emit('joinRoom', 'indexRoom');
         
-        // Load packet data on page load
+        // Load initial data
         socket.emit('requestPacketData');
+        socket.emit('requestKitList');
+        
+        // Mapping errorCode to string (chỉ hiển thị ý nghĩa)
+        function getErrorCodeText(type, code) {
+            const txMap = {
+                0: "Thành công",
+                1: "Channel Busy (CCA failed)",
+                2: "TX Blocked",
+                3: "TX Aborted",
+                4: "Scheduled TX Missed",
+                5: "No ACK (ACK timeout)",
+                6: "TXACK Aborted"
+            };
+            const rxMap = {
+                0: "Thành công",
+                1: "CRC error",
+                2: "Format error",
+                3: "Aborted",
+                4: "Filtered",
+                99: "Unknown"
+            };
+            if (type === "TX") return txMap[code] || `Unknown (${code})`;
+            if (type === "RX") return rxMap[code] || `Unknown (${code})`;
+            return `Unknown (${code})`;
+        }
         
         // Handle packet data response
         socket.on('packetData', (data) => {
             updatePacketTable(data);
         });
         
+        // Handle kit list response
+        socket.on('kitList', (kits) => {
+            updateKitTable(kits);
+        });
+        
         // Handle new packet data
         socket.on('newPacketData', (data) => {
             addPacketToTable(data);
+        });
+        
+        // Handle kit update request
+        socket.on('requestKitUpdate', () => {
+            socket.emit('requestKitList');
         });
         
         // Handle CLI response
@@ -137,15 +219,48 @@
             }
         });
         
-        // Refresh packet data
+        // Refresh buttons
         document.getElementById('refreshBtn').addEventListener('click', () => {
             socket.emit('requestPacketData');
         });
         
-        // Clear table
+        document.getElementById('refreshKitBtn').addEventListener('click', () => {
+            socket.emit('requestKitList');
+        });
+        
         document.getElementById('clearBtn').addEventListener('click', () => {
             document.getElementById('packetTableBody').innerHTML = '';
         });
+        
+        // Bắt sự kiện click vào packet data
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.packet-data-link')) {
+                e.preventDefault();
+                const packet = JSON.parse(e.target.closest('.packet-data-link').getAttribute('data-packet'));
+                showPacketDetail(packet);
+            }
+        });
+        
+        // Update kit table
+        function updateKitTable(kits) {
+            const tbody = document.getElementById('kitTableBody');
+            tbody.innerHTML = '';
+            
+            kits.forEach(kit => {
+                const row = document.createElement('tr');
+                const lastSeen = new Date(kit.last_seen).toLocaleString('vi-VN');
+                const statusBadge = kit.status === 'online' ? 'bg-success' : 'bg-secondary';
+                
+                row.innerHTML = `
+                    <td><code>${kit.kit_unique}</code></td>
+                    <td>${kit.com_port}</td>
+                    <td><span class="badge ${statusBadge}">${kit.status}</span></td>
+                    <td>${lastSeen}</td>
+                    <td>${kit.packet_count}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
         
         // Update packet table
         function updatePacketTable(data) {
@@ -159,41 +274,278 @@
         
         // Add single packet to table
         function addPacketToTable(packet) {
+            if (!packet) {
+                console.error('Packet data is undefined');
+                return;
+            }
+            
             const tbody = document.getElementById('packetTableBody');
             const row = document.createElement('tr');
             
-            // Format timestamp
-            const timestamp = new Date(packet.timestamp).toLocaleString('vi-VN');
+            const timestamp = packet.timestamp ? new Date(packet.timestamp).toLocaleString('vi-VN') : 'N/A';
+            const packetData = (packet.packet_data || packet.packetData || '');
+            const displayData = packetData.length > 50 ? 
+                packetData.substring(0, 50) + '...' : 
+                packetData;
             
-            // Truncate packet data if too long
-            const packetData = packet.packet_data.length > 50 ? 
-                packet.packet_data.substring(0, 50) + '...' : 
-                packet.packet_data;
+            // Chỉ hiển thị ý nghĩa error code
+            const errorCodeText = getErrorCodeText(packet.type, packet.error_code || packet.errorCode || 0);
+            
+            // Hiển thị thông tin CRC, RSSI, LQI cho RX packet
+            const crcDisplay = packet.type === 'RX' ? 
+                `<span class="badge ${(packet.crc_passed || packet.crcPassed) ? 'bg-success' : 'bg-danger'}">
+                    ${(packet.crc_passed || packet.crcPassed) ? 'PASS' : 'FAIL'}
+                </span>` : 
+                '<span class="text-muted">N/A</span>';
+            
+            const rssiDisplay = packet.type === 'RX' && (packet.rssi !== undefined && packet.rssi !== null) ? 
+                `<span class="text-info">${packet.rssi} dBm</span>` : 
+                '<span class="text-muted">N/A</span>';
+            
+            const lqiDisplay = packet.type === 'RX' && (packet.lqi !== undefined && packet.lqi !== null) ? 
+                `<span class="text-primary">${packet.lqi}</span>` : 
+                '<span class="text-muted">N/A</span>';
             
             row.innerHTML = `
-                <td>${packet.id || 'N/A'}</td>
-                <td><span class="badge ${packet.type === 'TX' ? 'bg-success' : 'bg-info'}">${packet.type}</span></td>
+                <td><span class="badge ${packet.type === 'TX' ? 'bg-success' : 'bg-info'}">${packet.type || 'N/A'}</span></td>
                 <td>${timestamp}</td>
-                <td>${packet.packet_length || packet.packetLength}</td>
-                <td><code>${packet.kit_unique || packet.kitUnique}</code></td>
-                <td>${packet.error_code || packet.errorCode}</td>
+                <td>${packet.packet_length || packet.packetLength || 0}</td>
+                <td><code>${packet.kit_unique || packet.kitUnique || 'N/A'}</code></td>
+                <td>${packet.com_port || packet.comPort || 'N/A'}</td>
+                <td><span class="text-${errorCodeText === 'Thành công' ? 'success' : 'danger'}">${errorCodeText}</span></td>
                 <td>${(packet.is_ack || packet.isAck) ? 'Yes' : 'No'}</td>
-                <td>${packet.channel}</td>
-                <td><code title="${packet.packet_data || packet.packetData}">${packetData}</code></td>
-                <td>${packet.com_port || packet.comPort}</td>
+                <td>${packet.channel || 0}</td>
+                <td>${crcDisplay}</td>
+                <td>${rssiDisplay}</td>
+                <td>${lqiDisplay}</td>
+                <td>
+                    <a href="#" class="packet-data-link" data-packet='${JSON.stringify(packet).replace(/'/g, "&apos;")}' title="${packetData}">
+                        <code>${displayData}</code>
+                    </a>
+                </td>
             `;
             
-            // Insert at the beginning of the table
             tbody.insertBefore(row, tbody.firstChild);
             
-            // Limit table rows to 100
             if (tbody.children.length > 100) {
                 tbody.removeChild(tbody.lastChild);
             }
         }
         
-        // Request COM port list on load
-        socket.emit('requestComList');
+        // Show packet detail modal
+        function showPacketDetail(packet) {
+            const hex = (packet.packet_data || packet.packetData || "");
+            const buf = hexToBytes(hex);
+
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Thông tin cơ bản</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Type:</strong></td><td><span class="badge ${packet.type === 'TX' ? 'bg-success' : 'bg-info'}">${packet.type}</span></td></tr>
+                            <tr><td><strong>Kit Unique:</strong></td><td><code>${packet.kit_unique || packet.kitUnique}</code></td></tr>
+                            <tr><td><strong>Packet Length:</strong></td><td>${packet.packet_length || packet.packetLength}</td></tr>
+                            <tr><td><strong>COM Port:</strong></td><td>${packet.com_port || packet.comPort}</td></tr>
+                            <tr><td><strong>Error Code:</strong></td><td><span class="text-${getErrorCodeText(packet.type, packet.error_code || packet.errorCode) === 'Thành công' ? 'success' : 'danger'}">${getErrorCodeText(packet.type, packet.error_code || packet.errorCode)}</span></td></tr>
+                            <tr><td><strong>Is ACK:</strong></td><td>${(packet.is_ack || packet.isAck) ? 'Yes' : 'No'}</td></tr>
+                            <tr><td><strong>Channel:</strong></td><td>${packet.channel}</td></tr>
+                            <tr><td><strong>Timestamp:</strong></td><td>${packet.timestamp ? new Date(packet.timestamp).toLocaleString('vi-VN') : 'N/A'}</td></tr>
+            `;
+            
+            // Thêm thông tin RX chi tiết nếu có
+            if (packet.type === 'RX') {
+                const crcStatus = (packet.crc_passed || packet.crcPassed) ? 'PASS' : 'FAIL';
+                const crcClass = (packet.crc_passed || packet.crcPassed) ? 'success' : 'danger';
+                
+                html += `
+                            <tr><td><strong>CRC Status:</strong></td><td><span class="badge bg-${crcClass}">${crcStatus}</span></td></tr>
+                            <tr><td><strong>RSSI:</strong></td><td><span class="text-info fw-bold">${packet.rssi || 'N/A'} dBm</span></td></tr>
+                            <tr><td><strong>LQI:</strong></td><td><span class="text-primary fw-bold">${packet.lqi || 'N/A'}</span></td></tr>
+                `;
+                
+                // Thêm phân tích chất lượng tín hiệu
+                html += `</table>
+                        <h6 class="text-primary mt-3">Phân tích chất lượng tín hiệu</h6>
+                        <div class="alert alert-info">
+                            ${analyzeSignalQuality(packet.rssi, packet.lqi, packet.crc_passed || packet.crcPassed)}
+                        </div>
+                        <table class="table table-sm">`;
+            }
+            
+            html += `
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Hex Dump</h6>
+                        <pre class="bg-light p-3" style="font-size: 0.8em; max-height: 300px; overflow-y: auto;">${formatHexDump(buf)}</pre>
+                    </div>
+                </div>
+            `;
+
+            // Phân tích IEEE 802.15.4 nếu có dữ liệu
+            if (buf.length > 0) {
+                html += analyzeIEEE802154(buf);
+            }
+
+            document.getElementById('packetDetailBody').innerHTML = html;
+            const modal = new bootstrap.Modal(document.getElementById('packetDetailModal'));
+            modal.show();
+        }
+        
+        // Chuyển hex string sang Uint8Array
+        function hexToBytes(hex) {
+            if (!hex) return [];
+            let bytes = [];
+            for (let c = 0; c < hex.length; c += 2)
+                bytes.push(parseInt(hex.substr(c, 2), 16));
+            return bytes;
+        }
+        
+        // Format hex dump
+        function formatHexDump(bytes) {
+            if (bytes.length === 0) return 'Không có dữ liệu';
+            
+            let out = '';
+            for (let i = 0; i < bytes.length; i++) {
+                if (i % 16 === 0) {
+                    if (i > 0) out += '\n';
+                    out += ('0000' + i.toString(16)).slice(-4).toUpperCase() + ': ';
+                }
+                out += ('0' + bytes[i].toString(16)).slice(-2).toUpperCase() + ' ';
+                if ((i + 1) % 8 === 0 && (i + 1) % 16 !== 0) out += ' ';
+            }
+            return out;
+        }
+        
+        // Hàm phân tích chất lượng tín hiệu
+        function analyzeSignalQuality(rssi, lqi, crcPassed) {
+            let quality = 'Unknown';
+            let color = 'secondary';
+            let description = '';
+            
+            if (rssi !== undefined && rssi !== null) {
+                if (rssi > -50) {
+                    quality = 'Excellent';
+                    color = 'success';
+                    description = 'Tín hiệu rất mạnh, kết nối ổn định';
+                } else if (rssi > -70) {
+                    quality = 'Good';
+                    color = 'info';
+                    description = 'Tín hiệu tốt, kết nối đáng tin cậy';
+                } else if (rssi > -85) {
+                    quality = 'Fair';
+                    color = 'warning';
+                    description = 'Tín hiệu trung bình, có thể gặp vấn đề';
+                } else {
+                    quality = 'Poor';
+                    color = 'danger';
+                    description = 'Tín hiệu yếu, kết nối không ổn định';
+                }
+            }
+            
+            let crcInfo = crcPassed ? 
+                '<span class="text-success">✓ Dữ liệu nguyên vẹn</span>' : 
+                '<span class="text-danger">✗ Dữ liệu bị lỗi</span>';
+            
+            return `
+                <strong>Chất lượng tín hiệu:</strong> <span class="badge bg-${color}">${quality}</span><br>
+                <strong>Mô tả:</strong> ${description}<br>
+                <strong>LQI:</strong> ${lqi || 'N/A'}/255<br>
+                <strong>Tính toàn vẹn dữ liệu:</strong> ${crcInfo}
+            `;
+        }
+        
+        // Phân tích cơ bản IEEE 802.15.4
+        function analyzeIEEE802154(bytes) {
+            if (bytes.length < 3) return '<hr><div class="alert alert-warning">Dữ liệu không đủ để phân tích IEEE 802.15.4</div>';
+            
+            let html = '<hr><h6 class="text-primary">Phân tích IEEE 802.15.4</h6>';
+            html += '<div class="row">';
+            html += '<div class="col-md-12">';
+            
+            try {
+                let offset = 0;
+                
+                // PHR (Physical Header)
+                if (bytes.length > offset) {
+                    let phr = bytes[offset];
+                    let pktLen = phr & 0x7F;
+                    html += `<p><strong>PHR (Physical Header):</strong> 0x${phr.toString(16).toUpperCase().padStart(2, '0')}</p>`;
+                    html += `<p><strong>Packet Length:</strong> ${pktLen} bytes</p>`;
+                    offset++;
+                }
+                
+                // Frame Control (2 bytes)
+                if (bytes.length > offset + 1) {
+                    let frameControl = bytes[offset] | (bytes[offset + 1] << 8);
+                    let frameType = frameControl & 0x07;
+                    let securityEnabled = (frameControl >> 3) & 0x01;
+                    let framePending = (frameControl >> 4) & 0x01;
+                    let ackRequest = (frameControl >> 5) & 0x01;
+                    let panIdCompression = (frameControl >> 6) & 0x01;
+                    let destAddrMode = (frameControl >> 10) & 0x03;
+                    let frameVersion = (frameControl >> 12) & 0x03;
+                    let srcAddrMode = (frameControl >> 14) & 0x03;
+                    
+                    const frameTypes = ['Beacon', 'Data', 'Acknowledgment', 'MAC Command'];
+                    const addrModes = ['None', 'Reserved', 'Short (16-bit)', 'Extended (64-bit)'];
+                    
+                    html += `<table class="table table-sm table-bordered">`;
+                    html += `<tr><td><strong>Frame Control:</strong></td><td>0x${frameControl.toString(16).toUpperCase().padStart(4, '0')}</td></tr>`;
+                    html += `<tr><td><strong>Frame Type:</strong></td><td>${frameTypes[frameType] || 'Unknown'} (${frameType})</td></tr>`;
+                    html += `<tr><td><strong>Security Enabled:</strong></td><td>${securityEnabled ? 'Yes' : 'No'}</td></tr>`;
+                    html += `<tr><td><strong>Frame Pending:</strong></td><td>${framePending ? 'Yes' : 'No'}</td></tr>`;
+                    html += `<tr><td><strong>ACK Request:</strong></td><td>${ackRequest ? 'Yes' : 'No'}</td></tr>`;
+                    html += `<tr><td><strong>PAN ID Compression:</strong></td><td>${panIdCompression ? 'Yes' : 'No'}</td></tr>`;
+                    html += `<tr><td><strong>Dest Addr Mode:</strong></td><td>${addrModes[destAddrMode]} (${destAddrMode})</td></tr>`;
+                    html += `<tr><td><strong>Frame Version:</strong></td><td>${frameVersion}</td></tr>`;
+                    html += `<tr><td><strong>Src Addr Mode:</strong></td><td>${addrModes[srcAddrMode]} (${srcAddrMode})</td></tr>`;
+                    html += `</table>`;
+                    offset += 2;
+                }
+                
+                // Sequence Number
+                if (bytes.length > offset) {
+                    let seq = bytes[offset];
+                    html += `<p><strong>Sequence Number:</strong> ${seq}</p>`;
+                    offset++;
+                }
+                
+                // Destination PAN ID
+                if (bytes.length > offset + 1) {
+                    let panId = bytes[offset] | (bytes[offset + 1] << 8);
+                    html += `<p><strong>Destination PAN ID:</strong> 0x${panId.toString(16).toUpperCase().padStart(4, '0')}</p>`;
+                    offset += 2;
+                }
+                
+                // Destination Address (nếu có)
+                if (bytes.length > offset + 1) {
+                    let destAddr = bytes[offset] | (bytes[offset + 1] << 8);
+                    html += `<p><strong>Destination Address:</strong> 0x${destAddr.toString(16).toUpperCase().padStart(4, '0')}</p>`;
+                    offset += 2;
+                }
+                
+                // Source Address (8 bytes extended)
+                if (bytes.length > offset + 7) {
+                    let srcAddr = bytes.slice(offset, offset + 8).map(b => ('0' + b.toString(16)).slice(-2)).join('').toUpperCase();
+                    html += `<p><strong>Source Address (Extended):</strong> 0x${srcAddr}</p>`;
+                    offset += 8;
+                }
+                
+                // Payload (phần còn lại trừ 2 bytes CRC cuối)
+                if (bytes.length > offset + 2) {
+                    let payload = bytes.slice(offset, bytes.length - 2);
+                    html += `<p><strong>Payload (${payload.length} bytes):</strong></p>`;
+                    html += `<pre class="bg-light p-2" style="font-size: 0.8em;">${formatHexDump(payload)}</pre>`;
+                }
+                
+            } catch (error) {
+                html += `<div class="alert alert-danger">Lỗi khi phân tích: ${error.message}</div>`;
+            }
+            
+            html += '</div></div>';
+            return html;
+        }
         
         // Handle Enter key in CLI command input
         document.getElementById('cliCommand').addEventListener('keypress', (e) => {

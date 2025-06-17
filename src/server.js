@@ -4,14 +4,13 @@ const socketIo = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
 const { monitorPorts, sendCliCommand } = require('./serial');
-const { getAllPacketData, getPacketDataByKit } = require('./database');
+const { getAllPacketData, getAllKits } = require('./database');
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
-
 const clientComPorts = new Map();
 
 app.use(express.static(path.join(__dirname, '../public')));
@@ -38,13 +37,13 @@ io.on('connection', socket => {
         }
     });
 
-    // Gửi dữ liệu packet theo kit
-    socket.on('requestPacketDataByKit', async (kitUnique) => {
+    // Gửi danh sách kit khi client yêu cầu
+    socket.on('requestKitList', async () => {
         try {
-            const data = await getPacketDataByKit(kitUnique);
-            socket.emit('packetDataByKit', data);
+            const kits = await getAllKits();
+            socket.emit('kitList', kits);
         } catch (error) {
-            console.error('Lỗi khi lấy dữ liệu packet theo kit:', error);
+            console.error('Lỗi khi lấy danh sách kit:', error);
         }
     });
 

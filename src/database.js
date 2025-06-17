@@ -4,7 +4,6 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 async function initializeDatabase() {
-    // Kết nối với MySQL bằng tài khoản root
     const rootPool = mysql.createPool({
         host: process.env.DB_HOST,
         user: process.env.DB_ROOT_USER,
@@ -12,25 +11,17 @@ async function initializeDatabase() {
     });
 
     try {
-        // Tạo cơ sở dữ liệu nếu chưa tồn tại
         await rootPool.execute(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME}`);
-
-        // Tạo tài khoản người dùng nếu chưa tồn tại
         await rootPool.execute(`
             CREATE USER IF NOT EXISTS '${process.env.DB_USER}'@'${process.env.DB_HOST}'
             IDENTIFIED BY '${process.env.DB_PASSWORD}'
         `);
-
-        // Cấp quyền cho người dùng
         await rootPool.execute(`
             GRANT ALL PRIVILEGES ON ${process.env.DB_NAME}.*
             TO '${process.env.DB_USER}'@'${process.env.DB_HOST}'
         `);
-
-        // Đóng kết nối root
         await rootPool.end();
 
-        // Kết nối tới cơ sở dữ liệu với tài khoản người dùng
         const pool = mysql.createPool({
             host: process.env.DB_HOST,
             user: process.env.DB_USER,
@@ -38,7 +29,7 @@ async function initializeDatabase() {
             database: process.env.DB_NAME
         });
 
-        // Tạo bảng packet_data mới thay thế com_data
+        // Tạo bảng packet_data
         await pool.execute(`
             CREATE TABLE IF NOT EXISTS packet_data (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -51,9 +42,26 @@ async function initializeDatabase() {
                 channel INT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                 com_port VARCHAR(50) NOT NULL,
+                rssi INT NULL,
+                lqi INT NULL,
+                crc_passed BOOLEAN NULL,
                 INDEX idx_timestamp (timestamp),
                 INDEX idx_kit_unique (kit_unique),
                 INDEX idx_type (type)
+            )
+        `);
+
+        // Tạo bảng kits để quản lý danh sách kit
+        await pool.execute(`
+            CREATE TABLE IF NOT EXISTS kits (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                kit_unique VARCHAR(50) UNIQUE NOT NULL,
+                com_port VARCHAR(50) NOT NULL,
+                last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+                status ENUM('online', 'offline') DEFAULT 'online',
+                packet_count INT DEFAULT 0,
+                INDEX idx_kit_unique (kit_unique),
+                INDEX idx_status (status)
             )
         `);
 
@@ -64,16 +72,56 @@ async function initializeDatabase() {
     }
 }
 
-// Khởi tạo pool khi module được tải
 const poolPromise = initializeDatabase();
 
-async function savePacketData({ type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort }) {
+async function savePacketData({ type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, rssi, lqi, crcPassed }) {
     const pool = await poolPromise;
-    const query = `
-        INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-    `;
-    await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort]);
+    
+    // Kiểm tra xem có phải RX packet không (chỉ RX mới có rssi, lqi, crc_passed)
+    if (type === 'RX' && (rssi !== undefined || lqi !== undefined || crcPassed !== undefined)) {
+        // Lưu packet RX với đầy đủ thông tin
+        const query = `
+            INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, rssi, lqi, crc_passed, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `;
+        await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, rssi || null, lqi || null, crcPassed || null]);
+    } else {
+        // Lưu packet TX chỉ với thông tin cơ bản
+        const query = `
+            INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `;
+        await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort]);
+    }
+    
+    // Cập nhật hoặc thêm kit
+    await updateOrInsertKit(kitUnique, comPort);
+}
+
+
+async function updateOrInsertKit(kitUnique, comPort) {
+    const pool = await poolPromise;
+    
+    // Kiểm tra kit đã tồn tại chưa
+    const [existing] = await pool.execute(
+        'SELECT id, packet_count FROM kits WHERE kit_unique = ?',
+        [kitUnique]
+    );
+    
+    if (existing.length > 0) {
+        // Cập nhật kit hiện có
+        await pool.execute(`
+            UPDATE kits 
+            SET com_port = ?, last_seen = NOW(), status = 'online', packet_count = packet_count + 1
+            WHERE kit_unique = ?
+        `, [comPort, kitUnique]);
+    } else {
+        // Thêm kit mới
+        await pool.execute(`
+            INSERT INTO kits (kit_unique, com_port, last_seen, status, packet_count)
+            VALUES (?, ?, NOW(), 'online', 1)
+        `, [kitUnique, comPort]);
+    }
 }
 
 async function getAllPacketData() {
@@ -84,13 +132,26 @@ async function getAllPacketData() {
     return rows;
 }
 
-async function getPacketDataByKit(kitUnique) {
+async function getAllKits() {
     const pool = await poolPromise;
     const [rows] = await pool.execute(
-        'SELECT * FROM packet_data WHERE kit_unique = ? ORDER BY timestamp DESC',
-        [kitUnique]
+        'SELECT * FROM kits ORDER BY last_seen DESC'
     );
     return rows;
 }
 
-module.exports = { savePacketData, getAllPacketData, getPacketDataByKit };
+async function updateKitStatus(comPort, status) {
+    const pool = await poolPromise;
+    await pool.execute(
+        'UPDATE kits SET status = ?, last_seen = NOW() WHERE com_port = ?',
+        [status, comPort]
+    );
+}
+
+module.exports = { 
+    savePacketData, 
+    getAllPacketData, 
+    getAllKits, 
+    updateKitStatus,
+    updateOrInsertKit
+};

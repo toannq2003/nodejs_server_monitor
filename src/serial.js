@@ -1,7 +1,6 @@
 const { SerialPort } = require('serialport');
-const { ReadlineParser } = require('@serialport/parser-readline');
 const usbDetect = require('usb-detection');
-const { savePacketData } = require('./database');
+const { savePacketData, updateKitStatus } = require('./database');
 
 const connectedPorts = new Map();
 const connectionAttempts = new Map();
@@ -25,11 +24,16 @@ async function updateComList(io) {
     try {
         const ports = Array.from(connectedPorts.values());
         console.log('Gửi danh sách cổng COM hiện có:', ports.map(p => p.path));
+        
+        // Gửi danh sách COM port
         io.to('indexRoom').emit('comList', ports.map((p, index) => ({
             id: index + 1,
             comPort: p.path,
             addrIpv6: 'fe80::1'
         })));
+        
+        // Gửi yêu cầu cập nhật danh sách kit
+        io.to('indexRoom').emit('requestKitUpdate');
     } catch (error) {
         console.error('Lỗi khi gửi danh sách cổng COM hiện có:', error);
     }
@@ -104,8 +108,19 @@ async function connectToPort(path, io, clientComPorts) {
                             }
 
                         case "string":
+                            // Tìm kết thúc string
+                            let endPos = -1;
+                            for (let i = offset; i < buffer.length - 1; i++) {
+                                if ((buffer[i] === 0x0D && buffer[i + 1] === 0x0A) ||
+                                    (buffer[i] === 0x3E && buffer[i + 1] === 0x20)) {
+                                    endPos = i + 2;
+                                    break;
+                                }
+                            }
 
-                            const stringData = buffer.subarray(0, offset + 2).toString();
+                            if (endPos === -1) break;
+
+                            const stringData = buffer.subarray(offset, endPos).toString();
                             console.log("String data:", stringData);
                             
                             // Gửi CLI response về web
@@ -115,7 +130,7 @@ async function connectToPort(path, io, clientComPorts) {
                                 response: stringData 
                             });
 
-                            buffer = buffer.subarray(offset + 2);
+                            buffer = buffer.subarray(endPos);
                             state = "idle";
                             offset = 0;
                             continue;
@@ -124,7 +139,7 @@ async function connectToPort(path, io, clientComPorts) {
                             if (buffer.length - offset < 4) break;
 
                             type = buffer[offset + 2];
-                            length = buffer[offset + 3]; // Lấy trực tiếp packetLength
+                            length = buffer[offset + 3];
                             
                             console.log(`Type: 0x${type.toString(16)}, Length: ${length}`);
 
@@ -204,6 +219,9 @@ async function connectToPort(path, io, clientComPorts) {
                                         timestamp: new Date()
                                     });
                                     
+                                    // Gửi cập nhật kit
+                                    io.to('indexRoom').emit('requestKitUpdate');
+                                    
                                     console.log(`Đã lưu packet ${packetInfo.type} từ kit ${packetInfo.kitUnique}`);
                                 } catch (error) {
                                     console.error(`Lỗi khi lưu dữ liệu ${packetInfo.type}:`, error);
@@ -235,15 +253,17 @@ async function connectToPort(path, io, clientComPorts) {
                 }
             });
 
-            port.on('error', err => {
+            port.on('error', async (err) => {
                 console.error(`Lỗi cổng ${path}:`, err.message);
                 connectedPorts.delete(path);
+                await updateKitStatus(path, 'offline');
                 updateComList(io);
             });
 
-            port.on('close', () => {
+            port.on('close', async () => {
                 console.log(`Cổng ${path} đã đóng`);
                 connectedPorts.delete(path);
+                await updateKitStatus(path, 'offline');
                 updateComList(io);
             });
         });
@@ -275,7 +295,6 @@ function monitorPorts(io, clientComPorts) {
             const currentPorts = await listComPorts();
             const currentPortPaths = currentPorts.map(p => p.path);
             
-            // Xóa các cổng không còn tồn tại
             for (const [path, port] of connectedPorts) {
                 if (!currentPortPaths.includes(path)) {
                     console.log(`Đóng cổng không còn tồn tại: ${path}`);
@@ -283,6 +302,7 @@ function monitorPorts(io, clientComPorts) {
                         port.close();
                     }
                     connectedPorts.delete(path);
+                    await updateKitStatus(path, 'offline');
                 }
             }
             updateComList(io);
