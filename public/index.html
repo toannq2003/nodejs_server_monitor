@@ -466,7 +466,101 @@
             .main-container {
                 margin: 10px;
             }
+
+            
+
         }
+
+        /* Virtual Scroll Implementation */
+.virtual-scroll-container {
+    position: relative;
+    height: 500px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.virtual-scroll-content {
+    position: relative;
+}
+
+.virtual-scroll-viewport {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    will-change: transform;
+}
+
+.virtual-row {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #f0f0f0;
+    background: white;
+    transition: background-color 0.2s ease;
+}
+
+.virtual-row:hover {
+    background: linear-gradient(135deg, #f8f9ff, #e3f2fd);
+}
+
+.virtual-row .col {
+    padding: 8px;
+    border-right: 1px solid #f0f0f0;
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Filter Controls */
+.filter-controls {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border: 1px solid #dee2e6;
+}
+
+.filter-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.filter-group label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.filter-select, .filter-input {
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    min-width: 150px;
+}
+
+.filter-stats {
+    background: #e3f2fd;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #1565c0;
+    margin-left: auto;
+}
+
     </style>
 </head>
 <body>
@@ -568,50 +662,84 @@
             </div>
         </div>
 
-        <!-- Packet Capture Table -->
-        <div class="row px-4 pb-4">
-            <div class="col-12">
-                <div class="card card-modern fade-in-up">
-                    <div class="card-header-modern d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-list me-2"></i>Live Packet Capture</h5>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-success-modern btn-modern btn-sm" id="refreshBtn">
-                                <i class="fas fa-sync-alt me-1"></i>Refresh
-                            </button>
-                            <button class="btn btn-warning-modern btn-modern btn-sm" id="clearBtn">
-                                <i class="fas fa-trash me-1"></i>Clear
-                            </button>
+        <!-- Packet Capture với Virtual Scroll và Filters -->
+<div class="row px-4 pb-4">
+    <div class="col-12">
+        <div class="card card-modern fade-in-up">
+            <div class="card-header-modern d-flex justify-content-between align-items-center">
+                <h5><i class="fas fa-list me-2"></i>Live Packet Capture</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success-modern btn-modern btn-sm" id="refreshBtn">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                    <button class="btn btn-warning-modern btn-modern btn-sm" id="clearBtn">
+                        <i class="fas fa-trash me-1"></i>Clear
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Filter Controls -->
+                <div class="filter-controls">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>Packet Type</label>
+                            <select class="filter-select" id="typeFilter">
+                                <option value="">All Types</option>
+                                <option value="TX">TX Only</option>
+                                <option value="RX">RX Only</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Kit Unique</label>
+                            <select class="filter-select" id="kitFilter">
+                                <option value="">All Kits</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>COM Port</label>
+                            <select class="filter-select" id="comFilter">
+                                <option value="">All Ports</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Search Data</label>
+                            <input type="text" class="filter-input" id="dataFilter" placeholder="Search in packet data...">
+                        </div>
+                        <div class="filter-stats" id="filterStats">
+                            Showing 0 of 0 packets
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="table-container">
-    <table class="table table-modern">
-                                <thead>
-                                    <tr>
-                                        <th>Type</th>
-                                        <th>Timestamp</th>
-                                        <th>Length</th>
-                                        <th>Source</th>
-                                        <th>COM Port</th>
-                                        <th>Status</th>
-                                        <th>ACK</th>
-                                        <th>Channel</th>
-                                        <th>CRC</th>
-                                        <th>RSSI</th>
-                                        <th>LQI</th>
-                                        <th>Packet Data</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="packetTableBody">
-                                    <!-- Dynamic content -->
-                                </tbody>
-                            </table>
+                </div>
+
+                <!-- Virtual Scroll Table -->
+                <div class="virtual-scroll-container" id="virtualScrollContainer">
+                    <!-- Header Row -->
+                    <div style="position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #343a40, #495057); color: white; display: flex; font-weight: 600; padding: 12px 0; border-bottom: 2px solid #007bff;">
+                        <div class="col" style="width: 8%; color: white;">Type</div>
+                        <div class="col" style="width: 12%; color: white;">Timestamp</div>
+                        <div class="col" style="width: 8%; color: white;">Length</div>
+                        <div class="col" style="width: 12%; color: white;">Kit ID</div>
+                        <div class="col" style="width: 10%; color: white;">COM Port</div>
+                        <div class="col" style="width: 10%; color: white;">Status</div>
+                        <div class="col" style="width: 6%; color: white;">ACK</div>
+                        <div class="col" style="width: 8%; color: white;">Channel</div>
+                        <div class="col" style="width: 8%; color: white;">RSSI</div>
+                        <div class="col" style="width: 6%; color: white;">LQI</div>
+                        <div class="col" style="width: 12%; color: white;">Packet Data</div>
+                    </div>
+                    
+                    <!-- Virtual Scroll Content -->
+                    <div class="virtual-scroll-content" id="virtualScrollContent">
+                        <div class="virtual-scroll-viewport" id="virtualScrollViewport">
+                            <!-- Dynamic rows will be rendered here -->
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
     <!-- Network Analyzer Modal -->
          <!-- Network Analyzer Modal - giống Silicon Labs Simplicity Studio -->
     <div class="modal fade network-analyzer-modal" id="networkAnalyzerModal" tabindex="-1">
@@ -886,7 +1014,7 @@
                 <td><code class="text-primary">${(packet.kit_unique || packet.kitUnique || 'N/A').substring(0, 12)}...</code></td>
                 <td><span class="badge bg-dark">${packet.com_port || packet.comPort || 'N/A'}</span></td>
                 <td><span class="badge bg-${isSuccess ? 'success' : 'danger'}">${errorCodeText}</span></td>
-                <td><span class="badge bg-${(packet.is_ack || packet.isAck) ? 'warning' : 'light'}">${(packet.is_ack || packet.isAck) ? 'ACK' : 'DATA'}</span></td>
+                <td><span class="badge bg-${(packet.is_ack || packet.isAck) ? 'warning' : 'warning'}">${(packet.is_ack || packet.isAck) ? 'ACK' : 'DATA'}</span></td>
                 <td><span class="badge bg-info">${packet.channel || 0}</span></td>
                 <td>${crcDisplay}</td>
                 <td>${rssiDisplay}</td>
@@ -948,7 +1076,7 @@
         function generateAdvancedProtocolTree(packet, buf) {
     let html = '';
     
-    // Frame overview dựa trên dữ liệu thực từ logger
+    // Frame overview
     html += `<div class="protocol-node layer-phy" data-range="0,${buf.length}">
         <span class="protocol-icon">📡</span>
         <span class="field-name">OpenThread Frame</span>: 
@@ -957,31 +1085,75 @@
     </div>`;
     
     if (buf.length > 0) {
-        // Physical Layer với PHR thực tế
-        html += generateRealPhysicalLayerAnalysis(packet, buf);
+        let offset = 0;
         
-        // MAC Layer từ PSDU (bỏ qua PHR)
-        html += generateRealMACLayerAnalysis(buf);
+        // IEEE 802.15.4 Layer
+        const macLength = findMACLength(buf);
+        html += generateIEEE802154Analysis(buf, offset, macLength);
+        offset += macLength;
         
         // Security Layer nếu có
         if (hasSecurityLayer(buf)) {
-            html += generateSecurityLayerAnalysis(buf);
+            const secLength = findSecurityLength(buf, offset);
+            html += generateIEEE802154SecurityAnalysis(buf, offset, secLength);
+            offset += secLength;
         }
         
-        // 6LoWPAN Analysis
-        html += generateSixLoWPANAnalysis(buf);
+        // 6LoWPAN Layer
+        const sixlowpanLength = find6LoWPANLength(buf, offset);
+        if (sixlowpanLength > 0) {
+            html += generate6LoWPANAnalysis(buf, offset, sixlowpanLength);
+            offset += sixlowpanLength;
+        }
         
-        // MLE Analysis
-        html += generateMLEAnalysis(buf);
+        // Lowpan UDP Layer
+        const udpLength = findLowpanUDPLength(buf, offset);
+        if (udpLength > 0) {
+            html += generateLowpanUDPAnalysis(buf, offset, udpLength);
+            offset += udpLength;
+        }
         
-        // Radio Info cho RX packets
-        if (packet.type === 'RX') {
-            html += generateRealRadioInfoAnalysis(packet);
+        // MLE Security Layer
+        const mleSecLength = findMLESecurityLength(buf, offset);
+        if (mleSecLength > 0) {
+            html += generateMLESecurityAnalysis(buf, offset, mleSecLength);
+            offset += mleSecLength;
+        }
+        
+        // MLE Layer
+        const mleLength = findMLELength(buf, offset);
+        if (mleLength > 0) {
+            html += generateMLEAnalysis(buf, offset, mleLength);
+            offset += mleLength;
+        }
+        
+        // MLE encryption MIC
+        if (buf.length - offset >= 4) {
+            html += generateMLEEncryptionMIC(buf, offset, 4);
+            offset += 4;
+        }
+        
+        // ICMPv6 Layer (nếu có)
+        const icmpLength = findICMPv6Length(buf, offset);
+        if (icmpLength > 0) {
+            html += generateICMPv6Analysis(buf, offset, icmpLength);
+            offset += icmpLength;
+        }
+        
+        // Application Payload (nếu có)
+        if (buf.length > offset) {
+            html += generateApplicationPayloadAnalysis(buf, offset, buf.length - offset);
+        }
+        
+        // MAC encryption MIC (nếu có)
+        if (hasMACEncryptionMIC(buf)) {
+            html += generateMACEncryptionMIC(buf);
         }
     }
     
     return html;
 }
+
         
         // Physical Layer Analysis
         function generatePhysicalLayerAnalysis(packet, buf) {
@@ -2178,28 +2350,6 @@ function generateRealMACLayerAnalysis(buf) {
     return html;
 }
 
-// Radio Info Analysis cho RX packets
-function generateRealRadioInfoAnalysis(packet) {
-    return `<div class="protocol-node layer-phy" onclick="toggleProtocolNode(this)">
-        <span class="protocol-icon">▶</span>
-        <span class="field-name">Radio Info EFR32MG24</span>
-        <span class="field-description">Silicon Labs Radio Information</span>
-    </div>
-    <div class="protocol-fields" style="display: none;">
-        <div class="protocol-field">
-            <span class="field-name">Kit Unique ID</span>: 
-            <span class="field-value">${packet.kit_unique ? packet.kit_unique.substring(0, 16) + '...' : 'N/A'}</span>
-        </div>
-        <div class="protocol-field">
-            <span class="field-name">COM Port</span>: 
-            <span class="field-value">${packet.com_port || 'N/A'}</span>
-        </div>
-        <div class="protocol-field">
-            <span class="field-name">Error Code</span>: 
-            <span class="field-value">${getErrorCodeText(packet.type, packet.error_code)} (${packet.error_code})</span>
-        </div>
-    </div>`;
-}
 
 // Helper functions
 function getSignalQualityText(rssi) {
@@ -2218,6 +2368,720 @@ function getLQIQualityText(lqi) {
     if (lqi > 100) return 'Fair';
     return 'Poor';
 }
+
+
+
+///
+// IEEE 802.15.4 Analysis
+function generateIEEE802154Analysis(buf, offset, length) {
+    const frameControl = buf[offset] | (buf[offset + 1] << 8);
+    const sequence = buf[offset + 2];
+    
+    let html = `<div class="protocol-node layer-mac" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">IEEE 802.15.4 [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + 2}">
+            <span class="field-name">Frame Control</span>: 
+            <span class="field-value">0x${frameControl.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 2},${offset + 3}">
+            <span class="field-name">Sequence Number</span>: 
+            <span class="field-value">0x${sequence.toString(16).padStart(2, '0').toUpperCase()}</span>
+        </div>`;
+    
+    let pos = offset + 3;
+    
+    // Destination PAN ID
+    if (pos + 1 < buf.length) {
+        const panId = buf[pos] | (buf[pos + 1] << 8);
+        html += `
+        <div class="protocol-field" data-range="${pos},${pos + 2}">
+            <span class="field-name">Destination PAN</span>: 
+            <span class="field-value">0x${panId.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>`;
+        pos += 2;
+    }
+    
+    // Destination Address
+    const destAddrMode = (frameControl >> 10) & 0x03;
+    if (destAddrMode === 2 && pos + 1 < buf.length) {
+        const destAddr = buf[pos] | (buf[pos + 1] << 8);
+        html += `
+        <div class="protocol-field" data-range="${pos},${pos + 2}">
+            <span class="field-name">Destination</span>: 
+            <span class="field-value">0x${destAddr.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>`;
+        pos += 2;
+    }
+    
+    // Source Address
+    const srcAddrMode = (frameControl >> 14) & 0x03;
+    if (srcAddrMode === 2 && pos + 1 < buf.length) {
+        const srcAddr = buf[pos] | (buf[pos + 1] << 8);
+        html += `
+        <div class="protocol-field" data-range="${pos},${pos + 2}">
+            <span class="field-name">Source</span>: 
+            <span class="field-value">0x${srcAddr.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// IEEE 802.15.4 Security Analysis
+function generateIEEE802154SecurityAnalysis(buf, offset, length) {
+    const securityControl = buf[offset];
+    const frameCounter = buf.slice(offset + 1, offset + 5);
+    const keyIndex = buf[offset + 5];
+    
+    return `<div class="protocol-node layer-security" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">IEEE 802.15.4 Security [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + 1}">
+            <span class="field-name">Security Control</span>: 
+            <span class="field-value">0x${securityControl.toString(16).padStart(2, '0').toUpperCase()}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 1},${offset + 5}">
+            <span class="field-name">Frame Counter</span>: 
+            <span class="field-value">0x${frameCounter.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join('')}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 5},${offset + 6}">
+            <span class="field-name">Key Index</span>: 
+            <span class="field-value">0x${keyIndex.toString(16).padStart(2, '0').toUpperCase()}</span>
+        </div>
+    </div>`;
+}
+
+// 6LoWPAN Analysis
+function generate6LoWPANAnalysis(buf, offset, length) {
+    const iphc = buf[offset] | (buf[offset + 1] << 8);
+    
+    return `<div class="protocol-node layer-6lowpan" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">6lowpan [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + 2}">
+            <span class="field-name">IPHC</span>: 
+            <span class="field-value">0x${iphc.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 2},${offset + length}">
+            <span class="field-name">Compressed Headers</span>: 
+            <span class="field-value">${buf.slice(offset + 2, offset + length).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')}</span>
+        </div>
+    </div>`;
+}
+
+// Lowpan UDP Analysis
+function generateLowpanUDPAnalysis(buf, offset, length) {
+    const nhcHeader = buf[offset];
+    const sourcePort = buf[offset + 1] | (buf[offset + 2] << 8);
+    const destPort = buf[offset + 3] | (buf[offset + 4] << 8);
+    const checksum = buf[offset + 5] | (buf[offset + 6] << 8);
+    
+    return `<div class="protocol-node layer-udp" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">Lowpan UDP [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + 1}">
+            <span class="field-name">Next Header Encoding</span>: 
+            <span class="field-value">0x${nhcHeader.toString(16).padStart(2, '0').toUpperCase()}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 1},${offset + 3}">
+            <span class="field-name">Source Port</span>: 
+            <span class="field-value">0x${sourcePort.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 3},${offset + 5}">
+            <span class="field-name">Dest Port</span>: 
+            <span class="field-value">0x${destPort.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 5},${offset + 7}">
+            <span class="field-name">Checksum</span>: 
+            <span class="field-value">0x${checksum.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>
+    </div>`;
+}
+
+// MLE Security Analysis
+function generateMLESecurityAnalysis(buf, offset, length) {
+    const securitySuite = buf[offset];
+    const securityControl = buf[offset + 1];
+    const frameCounter = buf.slice(offset + 2, offset + 6);
+    const keyIndex = buf[offset + 6];
+    
+    return `<div class="protocol-node layer-security" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">MLE Security [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + 1}">
+            <span class="field-name">Security Suite</span>: 
+            <span class="field-value">15.4 Security (0x${securitySuite.toString(16).padStart(2, '0').toUpperCase()})</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 1},${offset + 2}">
+            <span class="field-name">Security Control</span>: 
+            <span class="field-value">0x${securityControl.toString(16).padStart(2, '0').toUpperCase()}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 2},${offset + 6}">
+            <span class="field-name">Frame Counter</span>: 
+            <span class="field-value">0x${frameCounter.map(b => b.toString(16).padStart(2, '0').toUpperCase()).reverse().join('')}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 6},${offset + 7}">
+            <span class="field-name">Key Index</span>: 
+            <span class="field-value">0x${keyIndex.toString(16).padStart(2, '0').toUpperCase()}</span>
+        </div>
+    </div>`;
+}
+
+// MLE Analysis với TLV parsing chi tiết
+// MLE Analysis với TLV parsing chi tiết - Fixed version
+function generateMLEAnalysis(buf, offset, length) {
+    // Kiểm tra tham số đầu vào
+    if (!buf || !Array.isArray(buf) || buf.length === 0 || offset >= buf.length) {
+        return '';
+    }
+    
+    const command = buf[offset];
+    if (command === undefined) {
+        return '';
+    }
+    
+    const mleCommands = {
+        4: 'Advertise',
+        0: 'Link Request',
+        1: 'Link Accept', 
+        2: 'Link Accept and Request',
+        3: 'Link Reject',
+        5: 'Update',
+        6: 'Update Request'
+    };
+    
+    let html = `<div class="protocol-node layer-mle" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">MLE [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + 1}">
+            <span class="field-name">Command</span>: 
+            <span class="field-value">${mleCommands[command] || 'Unknown'} (0x${command.toString(16).padStart(2, '0').toUpperCase()})</span>
+        </div>`;
+    
+    // Parse TLVs với kiểm tra an toàn
+    let tlvOffset = offset + 1;
+    let tlvIndex = 0;
+    
+    while (tlvOffset < offset + length - 1 && tlvOffset < buf.length - 1) {
+        const type = buf[tlvOffset];
+        const tlvLength = buf[tlvOffset + 1];
+        
+        // Kiểm tra an toàn
+        if (type === undefined || tlvLength === undefined) {
+            break;
+        }
+        
+        if (tlvOffset + 2 + tlvLength > offset + length || tlvOffset + 2 + tlvLength > buf.length) {
+            break;
+        }
+        
+        const tlvNames = {
+            0: 'Source Address',
+            11: 'Leader Data',
+            9: 'Route64',
+            1: 'Mode',
+            2: 'Timeout',
+            3: 'Challenge',
+            4: 'Response'
+        };
+        
+        html += `
+        <div class="protocol-field" data-range="${tlvOffset},${tlvOffset + 2 + tlvLength}">
+            <span class="field-name">Mle Tlv_${tlvIndex}</span>: 
+            <span class="field-value">${tlvNames[type] || 'Unknown'} (0x${type.toString(16).padStart(2, '0').toUpperCase()})</span>
+        </div>`;
+        
+        // Leader Data TLV chi tiết với kiểm tra an toàn
+        if (type === 11 && tlvLength === 8 && tlvOffset + 2 + 8 <= buf.length) {
+            const data = buf.slice(tlvOffset + 2, tlvOffset + 2 + tlvLength);
+            if (data && data.length >= 8) {
+                const partitionId = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | data[3];
+                const weighting = data[4];
+                const dataVersion = data[5];
+                const stableDataVersion = data[6];
+                const leaderRouterId = data[7];
+                
+                html += `
+                <div style="margin-left: 20px;">
+                    <div class="protocol-field">
+                        <span class="field-name">Partition Id</span>: 
+                        <span class="field-value">0x${partitionId.toString(16).toUpperCase()}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">Weighting</span>: 
+                        <span class="field-value">0x${weighting.toString(16).padStart(2, '0').toUpperCase()}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">Data Version</span>: 
+                        <span class="field-value">0x${dataVersion.toString(16).padStart(2, '0').toUpperCase()}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">Stable Data Version</span>: 
+                        <span class="field-value">0x${stableDataVersion.toString(16).padStart(2, '0').toUpperCase()}</span>
+                    </div>
+                    <div class="protocol-field">
+                        <span class="field-name">Leader Router Id</span>: 
+                        <span class="field-value">0x${leaderRouterId.toString(16).padStart(2, '0').toUpperCase()}</span>
+                    </div>
+                </div>`;
+            }
+        }
+        
+        // Route64 TLV chi tiết với kiểm tra an toàn
+        if (type === 9 && tlvLength >= 10 && tlvOffset + 2 + tlvLength <= buf.length) {
+            const routerMask = buf.slice(tlvOffset + 2, tlvOffset + 10);
+            if (routerMask && routerMask.length >= 8) {
+                html += `
+                <div style="margin-left: 20px;">
+                    <div class="protocol-field">
+                        <span class="field-name">Router Mask</span>: 
+                        <span class="field-value">${routerMask.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')}</span>
+                    </div>`;
+                
+                // Route entries với kiểm tra an toàn
+                for (let i = 10; i < tlvLength && tlvOffset + 2 + i < buf.length; i++) {
+                    const routeEntry = buf[tlvOffset + 2 + i];
+                    if (routeEntry !== undefined) {
+                        html += `
+                        <div class="protocol-field">
+                            <span class="field-name">Route Entry ${i - 9}</span>: 
+                            <span class="field-value">0x${routeEntry.toString(16).padStart(2, '0').toUpperCase()}</span>
+                        </div>`;
+                    }
+                }
+                html += '</div>';
+            }
+        }
+        
+        tlvOffset += 2 + tlvLength;
+        tlvIndex++;
+        
+        // Tránh vòng lặp vô hạn
+        if (tlvIndex > 10) break;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// ICMPv6 Analysis
+function generateICMPv6Analysis(buf, offset, length) {
+    const type = buf[offset];
+    const code = buf[offset + 1];
+    const checksum = buf[offset + 2] | (buf[offset + 3] << 8);
+    
+    const icmpTypes = {
+        128: 'Echo Request',
+        129: 'Echo Reply'
+    };
+    
+    return `<div class="protocol-node layer-coap" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">ICMPv6 [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + 1}">
+            <span class="field-name">Type</span>: 
+            <span class="field-value">${icmpTypes[type] || 'Unknown'} (0x${type.toString(16).padStart(2, '0').toUpperCase()})</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 1},${offset + 2}">
+            <span class="field-name">Code</span>: 
+            <span class="field-value">0x${code.toString(16).padStart(2, '0').toUpperCase()}</span>
+        </div>
+        <div class="protocol-field" data-range="${offset + 2},${offset + 4}">
+            <span class="field-name">Checksum</span>: 
+            <span class="field-value">0x${checksum.toString(16).padStart(4, '0').toUpperCase()}</span>
+        </div>
+    </div>`;
+}
+
+// Application Payload Analysis
+function generateApplicationPayloadAnalysis(buf, offset, length) {
+    const payload = buf.slice(offset, offset + Math.min(12, length))
+        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+        .join(' ');
+    
+    return `<div class="protocol-node layer-coap" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">Application Payload [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + length}">
+            <span class="field-name">Data</span>: 
+            <span class="field-value">${payload}${length > 12 ? '...' : ''}</span>
+        </div>
+    </div>`;
+}
+
+// MLE encryption MIC
+function generateMLEEncryptionMIC(buf, offset, length) {
+    const mic = buf.slice(offset, offset + length)
+        .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+        .join(' ');
+    
+    return `<div class="protocol-node layer-security" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">MLE encryption MIC [${length} bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${offset},${offset + length}">
+            <span class="field-name">MLE MIC</span>: 
+            <span class="field-value">${mic}</span>
+        </div>
+    </div>`;
+}
+
+// MAC encryption MIC
+function generateMACEncryptionMIC(buf) {
+    const micBytes = buf.slice(-4);
+    const mic = micBytes.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+    
+    return `<div class="protocol-node layer-security" onclick="toggleProtocolNode(this)">
+        <span class="protocol-icon">▶</span>
+        <span class="field-name">MAC encryption MIC [4 bytes]</span>
+    </div>
+    <div class="protocol-fields" style="display: none;">
+        <div class="protocol-field" data-range="${buf.length - 4},${buf.length}">
+            <span class="field-name">MAC MIC</span>: 
+            <span class="field-value">${mic}</span>
+        </div>
+    </div>`;
+}
+
+// Helper functions để tìm length của từng layer
+function findMACLength(buf) {
+    // Phân tích Frame Control để tính MAC header length
+    if (buf.length < 3) return 0;
+    
+    const frameControl = buf[0] | (buf[1] << 8);
+    const destAddrMode = (frameControl >> 10) & 0x03;
+    const srcAddrMode = (frameControl >> 14) & 0x03;
+    
+    let length = 3; // Frame Control + Sequence
+    length += 2; // PAN ID
+    
+    if (destAddrMode === 2) length += 2;
+    else if (destAddrMode === 3) length += 8;
+    
+    if (srcAddrMode === 2) length += 2;
+    else if (srcAddrMode === 3) length += 8;
+    
+    return Math.min(length, 16); // Giới hạn theo PTI
+}
+
+function findSecurityLength(buf, offset) {
+    // IEEE 802.15.4 Security thường là 6 bytes
+    return 6;
+}
+
+function find6LoWPANLength(buf, offset) {
+    // 6LoWPAN thường là 3 bytes cho IPHC
+    return 3;
+}
+
+function findLowpanUDPLength(buf, offset) {
+    // Lowpan UDP thường là 7 bytes
+    return 7;
+}
+
+function findMLESecurityLength(buf, offset) {
+    // MLE Security thường là 11 bytes
+    return 11;
+}
+
+function findMLELength(buf, offset) {
+    // Tính toán MLE length dựa trên TLVs
+    let length = 1; // Command byte
+    let pos = offset + 1;
+    
+    while (pos < buf.length - 5) { // Trừ 4 bytes MIC + 1 byte
+        if (pos + 1 >= buf.length) break;
+        const tlvLength = buf[pos + 1];
+        length += 2 + tlvLength;
+        pos += 2 + tlvLength;
+        
+        if (length > 28) break; // Giới hạn theo PTI
+    }
+    
+    return Math.min(length, 28);
+}
+
+function findICMPv6Length(buf, offset) {
+    // ICMPv6 thường là 4 bytes header
+    return buf.length > offset + 3 ? 4 : 0;
+}
+
+function hasMACEncryptionMIC(buf) {
+    // Kiểm tra có MAC MIC không dựa trên cấu trúc frame
+    return buf.length > 50; // Simple check
+}
+
+
+////
+// Virtual Scroll Implementation
+class VirtualScroll {
+    constructor(container, options = {}) {
+        this.container = container;
+        this.content = container.querySelector('.virtual-scroll-content');
+        this.viewport = container.querySelector('.virtual-scroll-viewport');
+        
+        this.rowHeight = options.rowHeight || 45;
+        this.buffer = options.buffer || 5;
+        this.data = [];
+        this.filteredData = [];
+        this.visibleStart = 0;
+        this.visibleEnd = 0;
+        this.renderedRows = new Map();
+        
+        this.init();
+    }
+    
+    init() {
+        this.container.addEventListener('scroll', this.onScroll.bind(this));
+        this.updateViewport();
+    }
+    
+    setData(data) {
+        this.data = data;
+        this.applyFilters();
+    }
+    
+    applyFilters() {
+        const typeFilter = document.getElementById('typeFilter').value;
+        const kitFilter = document.getElementById('kitFilter').value;
+        const comFilter = document.getElementById('comFilter').value;
+        const dataFilter = document.getElementById('dataFilter').value.toLowerCase();
+        
+        this.filteredData = this.data.filter(item => {
+            if (typeFilter && item.type !== typeFilter) return false;
+            if (kitFilter && item.kit_unique !== kitFilter) return false;
+            if (comFilter && item.com_port !== comFilter) return false;
+            if (dataFilter && !item.packet_data.toLowerCase().includes(dataFilter)) return false;
+            return true;
+        });
+        
+        this.updateFilterStats();
+        this.updateViewport();
+        this.render();
+    }
+    
+    updateFilterStats() {
+        const stats = document.getElementById('filterStats');
+        stats.textContent = `Showing ${this.filteredData.length} of ${this.data.length} packets`;
+    }
+    
+    updateViewport() {
+        const totalHeight = this.filteredData.length * this.rowHeight;
+        this.content.style.height = `${totalHeight}px`;
+        
+        const containerHeight = this.container.clientHeight - 45; // Minus header height
+        const scrollTop = this.container.scrollTop;
+        
+        this.visibleStart = Math.max(0, Math.floor(scrollTop / this.rowHeight) - this.buffer);
+        this.visibleEnd = Math.min(
+            this.filteredData.length,
+            Math.ceil((scrollTop + containerHeight) / this.rowHeight) + this.buffer
+        );
+    }
+    
+    onScroll() {
+        this.updateViewport();
+        this.render();
+    }
+    
+    render() {
+        // Remove rows that are no longer visible
+        for (const [index, row] of this.renderedRows) {
+            if (index < this.visibleStart || index >= this.visibleEnd) {
+                row.remove();
+                this.renderedRows.delete(index);
+            }
+        }
+        
+        // Add new visible rows
+        for (let i = this.visibleStart; i < this.visibleEnd; i++) {
+            if (!this.renderedRows.has(i) && this.filteredData[i]) {
+                const row = this.createRow(this.filteredData[i], i);
+                this.renderedRows.set(i, row);
+                this.viewport.appendChild(row);
+            }
+        }
+    }
+    
+    createRow(packet, index) {
+        const row = document.createElement('div');
+        row.className = 'virtual-row';
+        row.style.top = `${index * this.rowHeight}px`;
+        row.style.height = `${this.rowHeight}px`;
+        
+        const timestamp = packet.timestamp ? new Date(packet.timestamp).toLocaleString('vi-VN') : 'N/A';
+        const packetData = (packet.packet_data || '');
+        const displayData = packetData.length > 30 ? packetData.substring(0, 30) + '...' : packetData;
+        
+        const errorCodeText = getErrorCodeText(packet.type, packet.error_code || 0);
+        const isSuccess = errorCodeText === 'Success';
+        
+        row.innerHTML = `
+            <div class="col" style="width: 8%;">
+                <span class="badge bg-${packet.type === 'TX' ? 'success' : 'info'} fs-6">
+                    <i class="fas fa-${packet.type === 'TX' ? 'arrow-up' : 'arrow-down'} me-1"></i>${packet.type}
+                </span>
+            </div>
+            <div class="col" style="width: 12%;">${timestamp}</div>
+            <div class="col" style="width: 8%;">
+                <span class="badge bg-secondary">${packet.packet_length || packet.packetLength || 0}</span>
+            </div>
+            <div class="col" style="width: 12%;">
+                <code class="text-primary">${(packet.kit_unique || 'N/A').substring(0, 12)}...</code>
+            </div>
+            <div class="col" style="width: 10%;">
+                <span class="badge bg-dark">${packet.com_port || 'N/A'}</span>
+            </div>
+            <div class="col" style="width: 10%;">
+                <span class="badge bg-${isSuccess ? 'success' : 'danger'}">${errorCodeText}</span>
+            </div>
+            <div class="col" style="width: 6%;">
+                <span class="badge bg-${packet.is_ack ? 'warning' : 'light'}">${packet.is_ack ? 'ACK' : 'DATA'}</span>
+            </div>
+            <div class="col" style="width: 8%;">
+                <span class="badge bg-info">${packet.channel || 0}</span>
+            </div>
+            <div class="col" style="width: 8%;">
+                ${packet.type === 'RX' && packet.rssi ? `<span class="badge bg-info">${packet.rssi} dBm</span>` : '<span class="text-muted">N/A</span>'}
+            </div>
+            <div class="col" style="width: 6%;">
+                ${packet.type === 'RX' && packet.lqi ? `<span class="badge bg-primary">${packet.lqi}</span>` : '<span class="text-muted">N/A</span>'}
+            </div>
+            <div class="col" style="width: 12%;">
+                <a href="#" class="packet-data-link" data-packet='${JSON.stringify(packet).replace(/'/g, "&apos;")}' title="Click to analyze packet">
+                    ${displayData}
+                </a>
+            </div>
+        `;
+        
+        return row;
+    }
+}
+
+// Initialize Virtual Scroll
+let virtualScroll;
+let allPacketData = [];
+
+// Update packet table functions
+function updatePacketTable(data) {
+    allPacketData = data;
+    updateFilterOptions();
+    if (virtualScroll) {
+        virtualScroll.setData(data);
+    }
+}
+
+function addPacketToTable(packet) {
+    if (!packet) return;
+    
+    allPacketData.unshift(packet);
+    
+    // Limit data size for performance
+    if (allPacketData.length > 1000) {  //500
+        allPacketData = allPacketData.slice(0, 500); //200
+    }
+    
+    updateFilterOptions();
+    if (virtualScroll) {
+        virtualScroll.setData(allPacketData);
+    }
+}
+
+// Update filter options
+function updateFilterOptions() {
+    // Update Kit filter
+    const kitFilter = document.getElementById('kitFilter');
+    const uniqueKits = [...new Set(allPacketData.map(p => p.kit_unique).filter(k => k))];
+    kitFilter.innerHTML = '<option value="">All Kits</option>';
+    uniqueKits.forEach(kit => {
+        const option = document.createElement('option');
+        option.value = kit;
+        option.textContent = kit.substring(0, 16) + '...';
+        kitFilter.appendChild(option);
+    });
+    
+    // Update COM filter
+    const comFilter = document.getElementById('comFilter');
+    const uniqueComs = [...new Set(allPacketData.map(p => p.com_port).filter(c => c))];
+    comFilter.innerHTML = '<option value="">All Ports</option>';
+    uniqueComs.forEach(com => {
+        const option = document.createElement('option');
+        option.value = com;
+        option.textContent = com;
+        comFilter.appendChild(option);
+    });
+}
+
+// Initialize Virtual Scroll when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('virtualScrollContainer');
+    if (container) {
+        virtualScroll = new VirtualScroll(container, {
+            rowHeight: 45,
+            buffer: 10
+        });
+        
+        // Add filter event listeners
+        document.getElementById('typeFilter').addEventListener('change', () => {
+            if (virtualScroll) virtualScroll.applyFilters();
+        });
+        
+        document.getElementById('kitFilter').addEventListener('change', () => {
+            if (virtualScroll) virtualScroll.applyFilters();
+        });
+        
+        document.getElementById('comFilter').addEventListener('change', () => {
+            if (virtualScroll) virtualScroll.applyFilters();
+        });
+        
+        document.getElementById('dataFilter').addEventListener('input', debounce(() => {
+            if (virtualScroll) virtualScroll.applyFilters();
+        }, 300));
+    }
+});
+
+// Debounce function for search input
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Update clear button functionality
+document.getElementById('clearBtn').addEventListener('click', () => {
+    allPacketData = [];
+    if (virtualScroll) {
+        virtualScroll.setData([]);
+    }
+    updateFilterOptions();
+});
+
+
 
 
         console.log('OpenThread Network Analyzer initialized successfully');

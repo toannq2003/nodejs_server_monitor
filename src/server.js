@@ -3,8 +3,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
-const { monitorPorts, sendCliCommand } = require('./serial');
-const { getAllPacketData, getAllKits } = require('./database');
+const { monitorPorts, sendCliCommand, getConnectedPorts } = require('./serial');
+const { getAllPacketData, getAllKits, getFilteredPacketData } = require('./database');
 
 dotenv.config();
 
@@ -21,7 +21,7 @@ app.get('/', (req, res) => {
 
 io.on('connection', socket => {
     console.log('Client connected');
-    
+
     socket.on('joinRoom', room => {
         socket.join(room);
         console.log(`Client joined room: ${room}`);
@@ -37,10 +37,10 @@ io.on('connection', socket => {
         }
     });
 
-    // Thêm handler cho requestComList
+    // Handler cho requestComList - ĐÃ SỬA
     socket.on('requestComList', async () => {
         try {
-            const ports = Array.from(connectedPorts.values());
+            const ports = Array.from(getConnectedPorts().values());
             socket.emit('comList', ports.map((p, index) => ({
                 id: index + 1,
                 comPort: p.path,
@@ -48,6 +48,7 @@ io.on('connection', socket => {
             })));
         } catch (error) {
             console.error('Lỗi khi gửi danh sách COM:', error);
+            socket.emit('comList', []);
         }
     });
 
@@ -63,6 +64,23 @@ io.on('connection', socket => {
 
     socket.on('sendCli', ({ comPort, command }) => {
         const success = sendCliCommand(comPort, command);
+        if (!success) {
+            socket.emit('cliResponse', {
+                success: 0,
+                comPort: comPort,
+                response: 'Error: Port not connected or command failed'
+            });
+        }
+    });
+
+    // Handler cho filtered data
+    socket.on('requestFilteredPacketData', async (filters) => {
+        try {
+            const data = await getFilteredPacketData(filters);
+            socket.emit('packetData', data);
+        } catch (error) {
+            console.error('Lỗi khi lấy dữ liệu packet filtered:', error);
+        }
     });
 
     socket.on('disconnect', () => {
@@ -73,7 +91,7 @@ io.on('connection', socket => {
 
 monitorPorts(io, clientComPorts);
 
-const PORT = process.env.SERVER_PORT || 3000;
-server.listen(PORT, process.env.SERVER_HOST, () => {
-    console.log(`Server running at http://${process.env.SERVER_HOST}:${PORT}`);
+const PORT = process.env.SERVER_PORT || 8080;
+server.listen(PORT, process.env.SERVER_HOST || 'localhost', () => {
+    console.log(`Server running at http://${process.env.SERVER_HOST || 'localhost'}:${PORT}`);
 });

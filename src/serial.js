@@ -214,10 +214,10 @@ async function connectToPort(path, io, clientComPorts) {
                                     await savePacketData(packetInfo);
                                     
                                     // Gửi dữ liệu real-time cho client
-                                    io.to('indexRoom').emit('newPacketData', {
-                                        ...packetInfo,
-                                        timestamp: new Date()
-                                    });
+                                    // io.to('indexRoom').emit('newPacketData', {
+                                    //     ...packetInfo,
+                                    //     timestamp: new Date()
+                                    // });
                                     
                                     // Gửi cập nhật kit
                                     io.to('indexRoom').emit('requestKitUpdate');
@@ -333,4 +333,16 @@ function sendCliCommand(comPort, command) {
     return false;
 }
 
-module.exports = { monitorPorts, sendCliCommand, listComPorts };
+// Thêm vào cuối file serial.js
+function getConnectedPorts() {
+    return connectedPorts;
+}
+
+// Cập nhật module.exports
+module.exports = { 
+    monitorPorts, 
+    sendCliCommand, 
+    listComPorts,
+    getConnectedPorts  // Thêm function mới
+};
+

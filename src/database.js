@@ -148,10 +148,45 @@ async function updateKitStatus(comPort, status) {
     );
 }
 
-module.exports = { 
-    savePacketData, 
-    getAllPacketData, 
-    getAllKits, 
+// Thêm function lấy dữ liệu với filter
+async function getFilteredPacketData(filters = {}) {
+    const pool = await poolPromise;
+    let query = 'SELECT * FROM packet_data WHERE 1=1';
+    const params = [];
+    
+    if (filters.type) {
+        query += ' AND type = ?';
+        params.push(filters.type);
+    }
+    
+    if (filters.kit_unique) {
+        query += ' AND kit_unique = ?';
+        params.push(filters.kit_unique);
+    }
+    
+    if (filters.com_port) {
+        query += ' AND com_port = ?';
+        params.push(filters.com_port);
+    }
+    
+    if (filters.search) {
+        query += ' AND packet_data LIKE ?';
+        params.push(`%${filters.search}%`);
+    }
+    
+    query += ' ORDER BY timestamp DESC LIMIT ?';
+    params.push(filters.limit || 1000);
+    
+    const [rows] = await pool.execute(query, params);
+    return rows;
+}
+
+module.exports = {
+    savePacketData,
+    getAllPacketData,
+    getFilteredPacketData, // Thêm function mới
+    getAllKits,
     updateKitStatus,
     updateOrInsertKit
 };
+
