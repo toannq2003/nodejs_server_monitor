@@ -4,7 +4,7 @@ const socketIo = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
 const { monitorPorts, sendCliCommand, getConnectedPorts } = require('./serial');
-const { getAllPacketData, getAllKits, getFilteredPacketData } = require('./database');
+const { getAllPacketData, getAllKits, getFilteredPacketData, getDataWindow, getSimplePacketData } = require('./database');
 
 dotenv.config();
 
@@ -27,15 +27,6 @@ io.on('connection', socket => {
         console.log(`Client joined room: ${room}`);
     });
 
-    // Gửi dữ liệu packet khi client yêu cầu
-    socket.on('requestPacketData', async () => {
-        try {
-            const data = await getAllPacketData();
-            socket.emit('packetData', data);
-        } catch (error) {
-            console.error('Lỗi khi lấy dữ liệu packet:', error);
-        }
-    });
 
     // Handler cho requestComList - ĐÃ SỬA
     socket.on('requestComList', async () => {
@@ -73,15 +64,44 @@ io.on('connection', socket => {
         }
     });
 
-    // Handler cho filtered data
-    socket.on('requestFilteredPacketData', async (filters) => {
+
+// Thêm handler cho sliding window với filter
+// Cập nhật handler trong server.js
+socket.on('requestDataWindow', async ({ startId, direction, limit = 400, filters = {} }) => {
+    try {
+        console.log('Requesting data window:', { startId, direction, limit, filters });
+        
+        // Thử getDataWindow trước
+        const result = await getDataWindow(startId, direction, limit, filters);
+        socket.emit('dataWindow', result);
+        
+        console.log(`Sent ${direction} window: ${result.data.length} packets`);
+    } catch (error) {
+        console.error('Lỗi khi lấy data window, trying fallback:', error);
+        
         try {
-            const data = await getFilteredPacketData(filters);
-            socket.emit('packetData', data);
-        } catch (error) {
-            console.error('Lỗi khi lấy dữ liệu packet filtered:', error);
+            // Fallback to simple query
+            const result = await getSimplePacketData(limit);
+            socket.emit('dataWindow', result);
+            
+            console.log(`Sent fallback data: ${result.data.length} packets`);
+        } catch (fallbackError) {
+            console.error('Fallback cũng lỗi:', fallbackError);
+            
+            // Gửi empty result
+            socket.emit('dataWindow', {
+                data: [],
+                hasMoreNext: false,
+                hasMorePrev: false,
+                firstId: null,
+                lastId: null,
+                direction: direction || 'next'
+            });
         }
-    });
+    }
+});
+
+
 
     // Thêm vào server.js
     socket.on('requestKitUpdate', async () => {

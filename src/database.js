@@ -75,6 +75,16 @@ async function initializeDatabase() {
 
 const poolPromise = initializeDatabase();
 
+// Thêm helper function vào đầu database.js
+function convertParamsToString(params) {
+    return params.map(param => {
+        if (typeof param === 'number') {
+            return param.toString();
+        }
+        return param;
+    });
+}
+
 async function savePacketData({ type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, kitTimestamp, rssi, lqi, crcPassed }) {
     const pool = await poolPromise;
     
@@ -125,13 +135,7 @@ async function updateOrInsertKit(kitUnique, comPort) {
     }
 }
 
-async function getAllPacketData() {
-    const pool = await poolPromise;
-    const [rows] = await pool.execute(
-        'SELECT * FROM packet_data ORDER BY timestamp DESC LIMIT 1000'
-    );
-    return rows;
-}
+
 
 async function getAllKits() {
     const pool = await poolPromise;
@@ -149,43 +153,121 @@ async function updateKitStatus(comPort, status) {
     );
 }
 
-// Thêm function lấy dữ liệu với filter
-async function getFilteredPacketData(filters = {}) {
+
+// Thêm function getDataWindow với filter support
+// Cập nhật function getDataWindow
+async function getDataWindow(startId = null, direction = 'next', limit = 400, filters = {}) {
     const pool = await poolPromise;
-    let query = 'SELECT * FROM packet_data WHERE 1=1';
-    const params = [];
+    let query, params = [];
+    
+    // Build filter conditions
+    let filterConditions = '';
+    let filterParams = [];
     
     if (filters.type) {
-        query += ' AND type = ?';
-        params.push(filters.type);
+        filterConditions += ' AND type = ?';
+        filterParams.push(filters.type);
     }
     
     if (filters.kit_unique) {
-        query += ' AND kit_unique = ?';
-        params.push(filters.kit_unique);
+        filterConditions += ' AND kit_unique = ?';
+        filterParams.push(filters.kit_unique);
     }
     
     if (filters.com_port) {
-        query += ' AND com_port = ?';
-        params.push(filters.com_port);
+        filterConditions += ' AND com_port = ?';
+        filterParams.push(filters.com_port);
     }
     
     if (filters.search) {
-        query += ' AND packet_data LIKE ?';
-        params.push(`%${filters.search}%`);
+        filterConditions += ' AND packet_data LIKE ?';
+        filterParams.push(`%${filters.search}%`);
     }
     
-    query += ' ORDER BY timestamp DESC LIMIT ?';
-    params.push(filters.limit || 1000);
+    if (direction === 'next') {
+        if (startId) {
+            query = `SELECT * FROM packet_data WHERE id > ? ${filterConditions} ORDER BY id ASC LIMIT ?`;
+            params = [startId, ...filterParams, limit];
+        } else {
+            query = `SELECT * FROM packet_data WHERE 1=1 ${filterConditions} ORDER BY id DESC LIMIT ?`;
+            params = [...filterParams, limit];
+        }
+    } else {
+        query = `SELECT * FROM packet_data WHERE id < ? ${filterConditions} ORDER BY id DESC LIMIT ?`;
+        params = [startId, ...filterParams, limit];
+    }
     
-    const [rows] = await pool.execute(query, params);
-    return rows;
+    // Convert numeric parameters to strings
+    const stringParams = convertParamsToString(params);
+    
+    console.log('Executing query:', query);
+    console.log('With params:', stringParams);
+    
+    const [rows] = await pool.execute(query, stringParams);
+
+    
+    // Check có còn data không với filter
+    let hasMoreNextParams = filterParams.slice();
+    let hasMorePrevParams = filterParams.slice();
+    
+    const [hasMoreNext] = await pool.execute(
+        `SELECT COUNT(*) as count FROM packet_data WHERE id > ? ${filterConditions}`,
+        [rows.length > 0 ? Math.max(...rows.map(r => r.id)) : 0, ...hasMoreNextParams]
+    );
+    
+    const [hasMorePrev] = await pool.execute(
+        `SELECT COUNT(*) as count FROM packet_data WHERE id < ? ${filterConditions}`,
+        [rows.length > 0 ? Math.min(...rows.map(r => r.id)) : 999999, ...hasMorePrevParams]
+    );
+    
+    return {
+        data: direction === 'next' ? rows.reverse() : rows,
+        hasMoreNext: hasMoreNext[0].count > 0,
+        hasMorePrev: hasMorePrev[0].count > 0,
+        firstId: rows.length > 0 ? Math.min(...rows.map(r => r.id)) : null,
+        lastId: rows.length > 0 ? Math.max(...rows.map(r => r.id)) : null,
+        direction: direction
+    };
 }
 
+
+// Thêm vào database.js như fallback
+// Cập nhật function getSimplePacketData
+async function getSimplePacketData(limit = 400) {
+    const pool = await poolPromise;
+    
+    try {
+        const [rows] = await pool.execute(
+            'SELECT * FROM packet_data ORDER BY id DESC LIMIT ?',
+            [limit.toString()] // Convert to string
+        );
+        
+        return {
+            data: rows,
+            hasMoreNext: false,
+            hasMorePrev: rows.length >= limit,
+            firstId: rows.length > 0 ? Math.min(...rows.map(r => r.id)) : null,
+            lastId: rows.length > 0 ? Math.max(...rows.map(r => r.id)) : null,
+            direction: 'next'
+        };
+    } catch (error) {
+        console.error('Lỗi simple query:', error);
+        return {
+            data: [],
+            hasMoreNext: false,
+            hasMorePrev: false,
+            firstId: null,
+            lastId: null,
+            direction: 'next'
+        };
+    }
+}
+
+// Export thêm function
 module.exports = {
     savePacketData,
-    getAllPacketData,
-    getFilteredPacketData, // Thêm function mới
+    getDataWindow,
+    getSimplePacketData, // Thêm fallback
     getAllKits,
     updateKitStatus,
     updateOrInsertKit

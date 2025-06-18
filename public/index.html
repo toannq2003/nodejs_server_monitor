@@ -472,16 +472,21 @@
         }
 
         /* Virtual Scroll Implementation */
+/* Virtual Scroll Implementation */
 .virtual-scroll-container {
     position: relative;
-    height: 500px;
-    overflow-y: auto;
+    height: 500px !important;
+    max-height: 500px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     border: 1px solid #dee2e6;
     border-radius: 8px;
+    background: white;
 }
 
 .virtual-scroll-content {
     position: relative;
+    width: 100%;
 }
 
 .virtual-scroll-viewport {
@@ -501,6 +506,8 @@
     border-bottom: 1px solid #f0f0f0;
     background: white;
     transition: background-color 0.2s ease;
+    height: 45px;
+    box-sizing: border-box;
 }
 
 .virtual-row:hover {
@@ -514,9 +521,30 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
 }
 
-/* Filter Controls */
+.virtual-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background: linear-gradient(135deg, #343a40, #495057) !important;
+    color: white !important;
+    display: flex;
+    font-weight: 600;
+    padding: 12px 0;
+    border-bottom: 2px solid #007bff;
+    box-sizing: border-box;
+}
+
+.virtual-header .col {
+    color: white !important;
+    border-right: 1px solid #495057;
+    background: transparent !important;
+}
+
 .filter-controls {
     background: #f8f9fa;
     padding: 15px;
@@ -561,7 +589,6 @@
     margin-left: auto;
 }
 
-/* Time column styling */
 .time-column {
     display: flex;
     flex-direction: column;
@@ -579,6 +606,7 @@
     color: #0d6efd;
     font-weight: 600;
 }
+
 
 .time-label {
     font-size: 0.65rem;
@@ -698,6 +726,7 @@
         </div>
 
         <!-- Packet Capture với Virtual Scroll và Filters -->
+<!-- Live Packet Capture với Virtual Scroll -->
 <div class="row px-4 pb-4">
     <div class="col-12">
         <div class="card card-modern fade-in-up">
@@ -746,22 +775,22 @@
                     </div>
                 </div>
 
-                <!-- Virtual Scroll Table -->
+                <!-- Virtual Scroll Container -->
                 <div class="virtual-scroll-container" id="virtualScrollContainer">
                     <!-- Header Row -->
-                    <div style="position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #343a40, #495057); color: white; display: flex; font-weight: 600; padding: 12px 0; border-bottom: 2px solid #007bff;">
-                        <div class="col" style="width: 8%; color: white;">Type</div>
-                        <div class="col" style="width: 15%; color: white;">Time</div>
-                        <div class="col" style="width: 7%; color: white;">Length</div>
-                        <div class="col" style="width: 10%; color: white;">Kit ID</div>
-                        <div class="col" style="width: 8%; color: white;">COM Port</div>
-                        <div class="col" style="width: 8%; color: white;">Status</div>
-                        <div class="col" style="width: 5%; color: white;">ACK</div>
-                        <div class="col" style="width: 6%; color: white;">Channel</div>
-                        <div class="col" style="width: 6%; color: white;">CRC</div>
-                        <div class="col" style="width: 6%; color: white;">RSSI</div>
-                        <div class="col" style="width: 5%; color: white;">LQI</div>
-                        <div class="col" style="width: 11%; color: white;">Packet Data</div>
+                    <div class="virtual-header">
+                        <div class="col" style="width: 8%;">Type</div>
+                        <div class="col" style="width: 15%;">Time</div>
+                        <div class="col" style="width: 7%;">Length</div>
+                        <div class="col" style="width: 10%;">Kit ID</div>
+                        <div class="col" style="width: 8%;">COM Port</div>
+                        <div class="col" style="width: 8%;">Status</div>
+                        <div class="col" style="width: 5%;">ACK</div>
+                        <div class="col" style="width: 6%;">Channel</div>
+                        <div class="col" style="width: 6%;">CRC</div>
+                        <div class="col" style="width: 6%;">RSSI</div>
+                        <div class="col" style="width: 5%;">LQI</div>
+                        <div class="col" style="width: 11%;">Packet Data</div>
                     </div>
                     
                     <!-- Virtual Scroll Content -->
@@ -775,6 +804,7 @@
         </div>
     </div>
 </div>
+
 
     <!-- Network Analyzer Modal -->
          <!-- Network Analyzer Modal - giống Silicon Labs Simplicity Studio -->
@@ -889,10 +919,6 @@
     return `Unknown (${code})`;
 }
         
-        // Socket event handlers
-        socket.on('packetData', (data) => {
-            updatePacketTable(data);
-        });
         
         socket.on('kitList', (kits) => {
             updateKitTable(kits);
@@ -932,13 +958,23 @@ socket.on('comList', (ports) => {
     }
 });
 
-socket.on('kitList', (kits) => {
-    updateKitTable(kits);
-});
 
 
-        socket.on('kitList', (kits) => {
-    updateKitTable(kits);
+
+// Load initial data window
+        socket.emit('requestDataWindow', {
+            startId: null,
+            direction: 'next',
+            limit: 400,
+            filters: {}
+        });
+
+
+
+// Thêm vào socket event handlers trong index.html
+socket.on('requestKitUpdate', async () => {
+    console.log('Received requestKitUpdate from server');
+    socket.emit('requestKitList');  // Request fresh kit list
 });
         
         // Event listeners
@@ -2886,9 +2922,18 @@ function hasMACEncryptionMIC(buf) {
 // Virtual Scroll Implementation
 class VirtualScroll {
     constructor(container, options = {}) {
+
+        if (!container) {
+            throw new Error('Virtual Scroll container is required');
+        }
+
         this.container = container;
         this.content = container.querySelector('.virtual-scroll-content');
         this.viewport = container.querySelector('.virtual-scroll-viewport');
+
+        if (!this.content || !this.viewport) {
+            throw new Error('Virtual Scroll: Required child elements not found');
+        }
         
         this.rowHeight = options.rowHeight || 45;
         this.buffer = options.buffer || 5;
@@ -2898,24 +2943,159 @@ class VirtualScroll {
         this.visibleEnd = 0;
         this.renderedRows = new Map();
         
+        // Sliding window properties
+        this.windowSize = 400;
+        this.hasMoreNext = true;
+        this.hasMorePrev = true;
+        this.firstId = null;
+        this.lastId = null;
+        this.isLoadingNext = false;
+        this.isLoadingPrev = false;
+        
         this.init();
     }
     
-    init() {
-        this.container.addEventListener('scroll', this.onScroll.bind(this));
+     init() {
+        try {
+            this.container.addEventListener('scroll', this.onScroll.bind(this), { passive: true });
+            this.updateViewport();
+            this.isReady = true;
+            console.log('Virtual Scroll ready for data');
+        } catch (error) {
+            console.error('Virtual Scroll initialization failed:', error);
+        }
+    }
+    
+    onScroll(e) {
+        e.stopPropagation();
         this.updateViewport();
+        this.render();
+        this.checkSlidingWindow();
+    }
+    
+    checkSlidingWindow() {
+        if (!this.filteredData.length) return;
+        
+        const scrollTop = this.container.scrollTop;
+        const scrollHeight = this.container.scrollHeight;
+        const clientHeight = this.container.clientHeight;
+        
+        // Check scroll near top
+        if (scrollTop < 50 * this.rowHeight && 
+            this.hasMorePrev && !this.isLoadingPrev) {
+            this.loadPreviousData();
+        }
+        
+        // Check scroll near bottom
+        const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+        if (scrollPercentage > 0.9 && 
+            this.hasMoreNext && !this.isLoadingNext) {
+            this.loadNextData();
+        }
+    }
+    
+    async loadPreviousData() {
+        if (this.isLoadingPrev || !this.hasMorePrev) return;
+        
+        this.isLoadingPrev = true;
+        console.log('Loading previous packets from ID:', this.firstId);
+        
+        socket.emit('requestDataWindow', {
+            startId: this.firstId,
+            direction: 'prev',
+            limit: 200,
+            filters: this.getCurrentFilters()
+        });
+    }
+    
+    async loadNextData() {
+        if (this.isLoadingNext || !this.hasMoreNext) return;
+        
+        this.isLoadingNext = true;
+        console.log('Loading next packets from ID:', this.lastId);
+        
+        socket.emit('requestDataWindow', {
+            startId: this.lastId,
+            direction: 'next',
+            limit: 200,
+            filters: this.getCurrentFilters()
+        });
+    }
+    
+    getCurrentFilters() {
+        return {
+            type: document.getElementById('typeFilter')?.value || '',
+            kit_unique: document.getElementById('kitFilter')?.value || '',
+            com_port: document.getElementById('comFilter')?.value || '',
+            search: document.getElementById('dataFilter')?.value || ''
+        };
+    }
+    
+    handleDataWindow(result, direction) {
+        console.log(`Received ${direction} packets:`, result.data.length, 'items');
+        
+        if (direction === 'prev') {
+            const oldScrollHeight = this.container.scrollHeight;
+            this.data = [...result.data, ...this.data];
+            
+            if (this.data.length > this.windowSize) {
+                this.data = this.data.slice(0, this.windowSize);
+            }
+            
+            this.firstId = result.firstId;
+            this.hasMorePrev = result.hasMorePrev;
+            this.applyFilters();
+            
+            setTimeout(() => {
+                const newScrollHeight = this.container.scrollHeight;
+                const heightDiff = newScrollHeight - oldScrollHeight;
+                this.container.scrollTop += heightDiff;
+            }, 50);
+            
+            this.isLoadingPrev = false;
+        } else {
+            this.data = [...this.data, ...result.data];
+            
+            if (this.data.length > this.windowSize) {
+                this.data = this.data.slice(-this.windowSize);
+            }
+            
+            this.lastId = result.lastId;
+            this.hasMoreNext = result.hasMoreNext;
+            this.applyFilters();
+            this.isLoadingNext = false;
+        }
+        
+        console.log('Window updated. Total data:', this.data.length);
     }
     
     setData(data) {
-        this.data = data;
+        console.log('=== SETTING NEW DATA ===');
+        console.log('New data length:', data ? data.length : 0);
+        
+        this.data = data || [];
+        
+        if (this.data.length > 0) {
+            this.firstId = Math.min(...this.data.map(item => item.id || 0));
+            this.lastId = Math.max(...this.data.map(item => item.id || 0));
+        }
+        
+        this.clearAllRenderedRows();
+        this.container.scrollTop = 0;
+        this.visibleStart = 0;
+        this.visibleEnd = 0;
         this.applyFilters();
+        
+        console.log('=== DATA SET COMPLETE ===');
     }
     
     applyFilters() {
-        const typeFilter = document.getElementById('typeFilter').value;
-        const kitFilter = document.getElementById('kitFilter').value;
-        const comFilter = document.getElementById('comFilter').value;
-        const dataFilter = document.getElementById('dataFilter').value.toLowerCase();
+        console.log('=== APPLYING FILTERS ===');
+        
+        const typeFilter = document.getElementById('typeFilter')?.value || '';
+        const kitFilter = document.getElementById('kitFilter')?.value || '';
+        const comFilter = document.getElementById('comFilter')?.value || '';
+        const dataFilter = document.getElementById('dataFilter')?.value.toLowerCase() || '';
         
         this.filteredData = this.data.filter(item => {
             if (typeFilter && item.type !== typeFilter) return false;
@@ -2925,21 +3105,24 @@ class VirtualScroll {
             return true;
         });
         
-        this.updateFilterStats();
+        console.log('Filtered data length:', this.filteredData.length);
+        
+        this.clearAllRenderedRows();
+        this.container.scrollTop = 0;
+        this.visibleStart = 0;
+        this.visibleEnd = 0;
         this.updateViewport();
         this.render();
-    }
-    
-    updateFilterStats() {
-        const stats = document.getElementById('filterStats');
-        stats.textContent = `Showing ${this.filteredData.length} of ${this.data.length} packets`;
+        this.updateFilterStats();
+        
+        console.log('=== FILTER APPLIED ===');
     }
     
     updateViewport() {
         const totalHeight = this.filteredData.length * this.rowHeight;
         this.content.style.height = `${totalHeight}px`;
         
-        const containerHeight = this.container.clientHeight - 45; // Minus header height
+        const containerHeight = this.container.clientHeight - 45;
         const scrollTop = this.container.scrollTop;
         
         this.visibleStart = Math.max(0, Math.floor(scrollTop / this.rowHeight) - this.buffer);
@@ -2949,21 +3132,16 @@ class VirtualScroll {
         );
     }
     
-    onScroll() {
-        this.updateViewport();
-        this.render();
-    }
-    
     render() {
-        // Remove rows that are no longer visible
         for (const [index, row] of this.renderedRows) {
             if (index < this.visibleStart || index >= this.visibleEnd) {
-                row.remove();
+                if (row.parentNode) {
+                    row.remove();
+                }
                 this.renderedRows.delete(index);
             }
         }
         
-        // Add new visible rows
         for (let i = this.visibleStart; i < this.visibleEnd; i++) {
             if (!this.renderedRows.has(i) && this.filteredData[i]) {
                 const row = this.createRow(this.filteredData[i], i);
@@ -2974,181 +3152,120 @@ class VirtualScroll {
     }
     
     createRow(packet, index) {
-    const row = document.createElement('div');
-    row.className = 'virtual-row';
-    row.style.top = `${index * this.rowHeight}px`;
-    row.style.height = `${this.rowHeight}px`;
-    
-    // Server timestamp
-    const serverTimestamp = packet.timestamp ? 
-        new Date(packet.timestamp).toLocaleString('vi-VN', {
-            month: '2-digit',
-            day: '2-digit', 
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        }) : 'N/A';
-    
-    // Kit timestamp - chuyển đổi từ Unix timestamp
-    const kitTimestamp = packet.kit_timestamp ? 
-        new Date(packet.kit_timestamp * 1000).toLocaleString('vi-VN', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit', 
-            minute: '2-digit',
-            second: '2-digit'
-        }) : 'N/A';
-    
-    const packetData = (packet.packet_data || '');
-    const displayData = packetData.length > 37 ? packetData.substring(0, 37) + '...' : packetData;
-    
-    const errorCodeText = getErrorCodeText(packet.type, packet.error_code || 0);
-    const isSuccess = errorCodeText === 'Success';
-    
-    // CRC display cho RX packets
-    const crcDisplay = packet.type === 'RX' && packet.crc_passed !== null ? 
-        `<span class="badge bg-${packet.crc_passed ? 'success' : 'danger'}">
-            <i class="fas fa-${packet.crc_passed ? 'check' : 'times'} me-1"></i>
-            ${packet.crc_passed ? 'PASS' : 'FAIL'}
-        </span>` : 
-        '<span class="text-muted">N/A</span>';
-    
-    row.innerHTML = `
-        <div class="col" style="width: 8%;">
-            <span class="badge bg-${packet.type === 'TX' ? 'success' : 'info'} fs-6">
-                <i class="fas fa-${packet.type === 'TX' ? 'arrow-up' : 'arrow-down'} me-1"></i>${packet.type}
-            </span>
-        </div>
-        <div class="col" style="width: 15%;">
-            <div class="time-column">
-                <div class="server-time">
-                    <span class="time-label">SRV:</span> ${serverTimestamp}
-                </div>
-                <div class="kit-time">
-                    <span class="time-label">KIT:</span> ${kitTimestamp}
+        const row = document.createElement('div');
+        row.className = 'virtual-row';
+        row.style.top = `${index * this.rowHeight}px`;
+        row.style.height = `${this.rowHeight}px`;
+        
+        const serverTime = packet.timestamp ? new Date(packet.timestamp).toLocaleString('vi-VN') : 'N/A';
+        const kitTime = packet.kit_timestamp ? 
+            new Date(packet.kit_timestamp * 1000).toLocaleString('vi-VN') : 'N/A';
+        
+        const packetData = (packet.packet_data || '');
+        const displayData = packetData.length > 25 ? packetData.substring(0, 25) + '...' : packetData;
+        
+        const errorCodeText = getErrorCodeText(packet.type, packet.error_code || 0);
+        const isSuccess = errorCodeText === 'Success';
+        
+        const crcDisplay = packet.type === 'RX' && packet.crc_passed !== null ? 
+            `<span class="badge bg-${packet.crc_passed ? 'success' : 'danger'}">
+                ${packet.crc_passed ? 'PASS' : 'FAIL'}
+            </span>` : 
+            '<span class="text-muted">N/A</span>';
+        
+        row.innerHTML = `
+            <div class="col" style="width: 8%;">
+                <span class="badge bg-${packet.type === 'TX' ? 'success' : 'info'}">
+                    ${packet.type}
+                </span>
+            </div>
+            <div class="col" style="width: 15%;">
+                <div class="time-column">
+                    <div class="server-time">SRV: ${serverTime}</div>
+                    <div class="kit-time">KIT: ${kitTime}</div>
                 </div>
             </div>
-        </div>
-        <div class="col" style="width: 7%;">
-            <span class="badge bg-secondary">${packet.packet_length || packet.packetLength || 0}</span>
-        </div>
-        <div class="col" style="width: 10%;">
-            <code class="text-primary">${(packet.kit_unique || 'N/A').substring(0, 16)}...</code>
-        </div>
-        <div class="col" style="width: 8%;">
-            <span class="badge bg-dark">${packet.com_port || 'N/A'}</span>
-        </div>
-        <div class="col" style="width: 8%;">
-            <span class="badge bg-${isSuccess ? 'success' : 'danger'}">${errorCodeText}</span>
-        </div>
-        <div class="col" style="width: 5%;">
-            <span class="badge bg-${packet.is_ack ? 'warning' : 'primary'}">${packet.is_ack ? 'ACK' : 'DATA'}</span>
-        </div>
-        <div class="col" style="width: 6%;">
-            <span class="badge bg-info">${packet.channel || 0}</span>
-        </div>
-        <div class="col" style="width: 6%;">${crcDisplay}</div>
-        <div class="col" style="width: 6%;">
-            ${packet.type === 'RX' && packet.rssi ? `<span class="badge bg-info">${packet.rssi} dBm</span>` : '<span class="text-muted">N/A</span>'}
-        </div>
-        <div class="col" style="width: 5%;">
-            ${packet.type === 'RX' && packet.lqi ? `<span class="badge bg-primary">${packet.lqi}</span>` : '<span class="text-muted">N/A</span>'}
-        </div>
-        <div class="col" style="width: 11%;">
-            <a href="#" class="packet-data-link" data-packet='${JSON.stringify(packet).replace(/'/g, "&apos;")}' title="Click to analyze packet">
-                ${displayData}
-            </a>
-        </div>
-    `;
+            <div class="col" style="width: 7%;">
+                <span class="badge bg-secondary">${packet.packet_length || 0}</span>
+            </div>
+            <div class="col" style="width: 10%;">
+                <code class="text-primary">${(packet.kit_unique || 'N/A').substring(0, 10)}...</code>
+            </div>
+            <div class="col" style="width: 8%;">
+                <span class="badge bg-dark">${packet.com_port || 'N/A'}</span>
+            </div>
+            <div class="col" style="width: 8%;">
+                <span class="badge bg-${isSuccess ? 'success' : 'danger'}">${errorCodeText}</span>
+            </div>
+            <div class="col" style="width: 5%;">
+                <span class="badge bg-${packet.is_ack ? 'warning' : 'primary'}">${packet.is_ack ? 'ACK' : 'DATA'}</span>
+            </div>
+            <div class="col" style="width: 6%;">
+                <span class="badge bg-info">${packet.channel || 0}</span>
+            </div>
+            <div class="col" style="width: 6%;">${crcDisplay}</div>
+            <div class="col" style="width: 6%;">
+                ${packet.type === 'RX' && packet.rssi ? `<span class="badge bg-info">${packet.rssi} dBm</span>` : '<span class="text-muted">N/A</span>'}
+            </div>
+            <div class="col" style="width: 5%;">
+                ${packet.type === 'RX' && packet.lqi ? `<span class="badge bg-primary">${packet.lqi}</span>` : '<span class="text-muted">N/A</span>'}
+            </div>
+            <div class="col" style="width: 11%;">
+                <a href="#" class="packet-data-link" title="Click to analyze packet">
+                    ${displayData}
+                </a>
+            </div>
+        `;
+        
+        return row;
+    }
     
-    return row;
-}
-
-}
-
-// Initialize Virtual Scroll
-let virtualScroll;
-let allPacketData = [];
-
-// Update packet table functions
-function updatePacketTable(data) {
-    allPacketData = data;
-    updateFilterOptions();
-    if (virtualScroll) {
-        virtualScroll.setData(data);
+    clearAllRenderedRows() {
+        for (const [index, row] of this.renderedRows) {
+            if (row && row.parentNode) {
+                row.parentNode.removeChild(row);
+            }
+        }
+        this.renderedRows.clear();
+        if (this.viewport) {
+            this.viewport.innerHTML = '';
+        }
+    }
+    
+    updateFilterStats() {
+        const stats = document.getElementById('filterStats');
+        if (stats) {
+            stats.textContent = `Showing ${this.filteredData.length} of ${this.data.length} packets`;
+        }
     }
 }
 
-function addPacketToTable(packet) {
-    if (!packet) return;
-    
-    allPacketData.unshift(packet);
-    
-    // Limit data size for performance
-    if (allPacketData.length > 1000) {  //500
-        allPacketData = allPacketData.slice(0, 500); //200
-    }
-    
-    updateFilterOptions();
-    if (virtualScroll) {
-        virtualScroll.setData(allPacketData);
+// Helper functions
+function getErrorCodeText(type, errorCode) {
+    if (type === 'TX') {
+        switch (errorCode) {
+            case 0: return 'Success';
+            case 1: return 'Channel Busy';
+            case 2: return 'TX Blocked';
+            case 3: return 'TX Aborted';
+            case 4: return 'Scheduled TX Missed';
+            case 5: return 'No ACK';
+            case 6: return 'TXACK Aborted';
+            default: return 'Unknown';
+        }
+    } else {
+        switch (errorCode) {
+            case 0: return 'Success';
+            case 1: return 'CRC Error';
+            case 2: return 'Format Error';
+            case 3: return 'Aborted';
+            case 4: return 'Filtered';
+            case 99: return 'Unknown';
+            default: return 'Unknown';
+        }
     }
 }
 
-// Update filter options
-function updateFilterOptions() {
-    // Update Kit filter
-    const kitFilter = document.getElementById('kitFilter');
-    const uniqueKits = [...new Set(allPacketData.map(p => p.kit_unique).filter(k => k))];
-    kitFilter.innerHTML = '<option value="">All Kits</option>';
-    uniqueKits.forEach(kit => {
-        const option = document.createElement('option');
-        option.value = kit;
-        option.textContent = kit.substring(0, 16) + '...';
-        kitFilter.appendChild(option);
-    });
-    
-    // Update COM filter
-    const comFilter = document.getElementById('comFilter');
-    const uniqueComs = [...new Set(allPacketData.map(p => p.com_port).filter(c => c))];
-    comFilter.innerHTML = '<option value="">All Ports</option>';
-    uniqueComs.forEach(com => {
-        const option = document.createElement('option');
-        option.value = com;
-        option.textContent = com;
-        comFilter.appendChild(option);
-    });
-}
-
-// Initialize Virtual Scroll when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    const container = document.getElementById('virtualScrollContainer');
-    if (container) {
-        virtualScroll = new VirtualScroll(container, {
-            rowHeight: 45,
-            buffer: 10
-        });
-        
-        // Add filter event listeners
-        document.getElementById('typeFilter').addEventListener('change', () => {
-            if (virtualScroll) virtualScroll.applyFilters();
-        });
-        
-        document.getElementById('kitFilter').addEventListener('change', () => {
-            if (virtualScroll) virtualScroll.applyFilters();
-        });
-        
-        document.getElementById('comFilter').addEventListener('change', () => {
-            if (virtualScroll) virtualScroll.applyFilters();
-        });
-        
-        document.getElementById('dataFilter').addEventListener('input', debounce(() => {
-            if (virtualScroll) virtualScroll.applyFilters();
-        }, 300));
-    }
-});
-
-// Debounce function for search input
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -3160,6 +3277,98 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// Global variables
+let virtualScroll;
+
+
+
+// Initialize Socket.IO and Virtual Scroll
+document.addEventListener('DOMContentLoaded', function() {
+    
+  
+    
+    // Initialize Virtual Scroll
+    setTimeout(() => {
+        const container = document.getElementById('virtualScrollContainer');
+        if (container) {
+            virtualScroll = new VirtualScroll(container, {
+                rowHeight: 45,
+                buffer: 10
+            });
+            
+            console.log('Virtual Scroll initialized successfully');
+        } else {
+            console.error('Virtual Scroll container not found');
+        }
+    }, 500);
+});
+
+// ✅ ĐÚNG: Handler với kiểm tra virtualScroll tồn tại
+    socket.on('dataWindow', (result) => {
+        console.log('Received dataWindow:', result);
+        if (virtualScroll && typeof virtualScroll.handleDataWindow === 'function') {
+            virtualScroll.handleDataWindow(result, result.direction || 'next');
+        } else {
+            console.warn('Virtual Scroll not ready, queuing data...');
+            // Queue data để xử lý sau khi Virtual Scroll ready
+            window.pendingData = result;
+        }
+    });
+// Helper functions for UI updates
+function updateKitTable(kits) {
+    const tbody = document.getElementById('kitTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (!kits || kits.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No OpenThread devices found</td></tr>';
+        return;
+    }
+    
+    kits.forEach(kit => {
+        const lastSeen = kit.last_seen ? new Date(kit.last_seen).toLocaleString('vi-VN') : 'Never';
+        const statusBadge = kit.status === 'online' ? 
+            '<span class="badge bg-success">Online</span>' : 
+            '<span class="badge bg-danger">Offline</span>';
+        
+        const row = `
+            <tr>
+                <td><code class="text-primary">${kit.kit_unique.substring(0, 16)}...</code></td>
+                <td><span class="badge bg-dark">${kit.com_port}</span></td>
+                <td>${statusBadge}</td>
+                <td><small>${lastSeen}</small></td>
+                <td><span class="badge bg-info">${kit.packet_count || 0}</span></td>
+                <td><span class="text-muted">N/A</span></td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+}
+
+function updateComPortSelect(ports) {
+    const select = document.getElementById('comPortSelect');
+    if (!select) return;
+    
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Select COM Port...</option>';
+    
+    if (ports && ports.length > 0) {
+        ports.forEach(port => {
+            const option = document.createElement('option');
+            option.value = port.comPort;
+            option.textContent = port.comPort;
+            select.appendChild(option);
+        });
+        
+        if (currentValue && ports.some(p => p.comPort === currentValue)) {
+            select.value = currentValue;
+        }
+    }
+}
+
+
 
 // Update clear button functionality
 document.getElementById('clearBtn').addEventListener('click', () => {
