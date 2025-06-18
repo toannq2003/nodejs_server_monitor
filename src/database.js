@@ -41,6 +41,7 @@ async function initializeDatabase() {
                 is_ack BOOLEAN NOT NULL,
                 channel INT NOT NULL,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                kit_timestamp BIGINT NULL,  -- Thêm cột mới cho timestamp từ kit
                 com_port VARCHAR(50) NOT NULL,
                 rssi INT NULL,
                 lqi INT NULL,
@@ -74,24 +75,24 @@ async function initializeDatabase() {
 
 const poolPromise = initializeDatabase();
 
-async function savePacketData({ type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, rssi, lqi, crcPassed }) {
+async function savePacketData({ type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, kitTimestamp, rssi, lqi, crcPassed }) {
     const pool = await poolPromise;
     
     // Kiểm tra xem có phải RX packet không (chỉ RX mới có rssi, lqi, crc_passed)
     if (type === 'RX' && (rssi !== undefined || lqi !== undefined || crcPassed !== undefined)) {
         // Lưu packet RX với đầy đủ thông tin
         const query = `
-            INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, rssi, lqi, crc_passed, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, kit_timestamp, rssi, lqi, crc_passed, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
-        await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, rssi || null, lqi || null, crcPassed || null]);
+        await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, kitTimestamp, rssi || null, lqi || null, crcPassed || null]);
     } else {
         // Lưu packet TX chỉ với thông tin cơ bản
         const query = `
-            INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, kit_timestamp, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
-        await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort]);
+        await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, kitTimestamp]);
     }
     
     // Cập nhật hoặc thêm kit

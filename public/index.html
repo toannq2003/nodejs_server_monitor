@@ -561,6 +561,44 @@
     margin-left: auto;
 }
 
+/* Time column styling */
+.time-column {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+}
+
+.server-time {
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.kit-time {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.time-label {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive time display */
+@media (max-width: 1200px) {
+    .time-column {
+        font-size: 0.7rem;
+    }
+    
+    .time-label {
+        font-size: 0.6rem;
+    }
+}
+
+
     </style>
 </head>
 <body>
@@ -593,9 +631,6 @@
                                 <select class="form-select" id="comPortSelect">
                                     <option value="">Select COM Port...</option>
                                 </select>
-                                <button class="btn btn-outline-secondary" type="button" id="refreshComBtn">
-                                    <i class="fas fa-sync-alt"></i>
-                                </button>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -716,16 +751,17 @@
                     <!-- Header Row -->
                     <div style="position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #343a40, #495057); color: white; display: flex; font-weight: 600; padding: 12px 0; border-bottom: 2px solid #007bff;">
                         <div class="col" style="width: 8%; color: white;">Type</div>
-                        <div class="col" style="width: 12%; color: white;">Timestamp</div>
-                        <div class="col" style="width: 8%; color: white;">Length</div>
-                        <div class="col" style="width: 12%; color: white;">Kit ID</div>
-                        <div class="col" style="width: 10%; color: white;">COM Port</div>
-                        <div class="col" style="width: 10%; color: white;">Status</div>
-                        <div class="col" style="width: 6%; color: white;">ACK</div>
-                        <div class="col" style="width: 8%; color: white;">Channel</div>
-                        <div class="col" style="width: 8%; color: white;">RSSI</div>
-                        <div class="col" style="width: 6%; color: white;">LQI</div>
-                        <div class="col" style="width: 12%; color: white;">Packet Data</div>
+                        <div class="col" style="width: 15%; color: white;">Time</div>
+                        <div class="col" style="width: 7%; color: white;">Length</div>
+                        <div class="col" style="width: 10%; color: white;">Kit ID</div>
+                        <div class="col" style="width: 8%; color: white;">COM Port</div>
+                        <div class="col" style="width: 8%; color: white;">Status</div>
+                        <div class="col" style="width: 5%; color: white;">ACK</div>
+                        <div class="col" style="width: 6%; color: white;">Channel</div>
+                        <div class="col" style="width: 6%; color: white;">CRC</div>
+                        <div class="col" style="width: 6%; color: white;">RSSI</div>
+                        <div class="col" style="width: 5%; color: white;">LQI</div>
+                        <div class="col" style="width: 11%; color: white;">Packet Data</div>
                     </div>
                     
                     <!-- Virtual Scroll Content -->
@@ -873,19 +909,37 @@
             cliResponses.scrollTop = cliResponses.scrollHeight;
         });
         
-        socket.on('comList', (ports) => {
-            const select = document.getElementById('comPortSelect');
-            select.innerHTML = '<option value="">Select COM Port...</option>';
+        // Socket event handlers - đảm bảo có đủ các handler này
+socket.on('comList', (ports) => {
+    const select = document.getElementById('comPortSelect');
+    if (select) {
+        const currentValue = select.value; // Lưu giá trị hiện tại
+        select.innerHTML = '<option value="">Select COM Port...</option>';
+        
+        if (ports && ports.length > 0) {
+            ports.forEach(port => {
+                const option = document.createElement('option');
+                option.value = port.comPort;
+                option.textContent = port.comPort;
+                select.appendChild(option);
+            });
             
-            if (ports && ports.length > 0) {
-                ports.forEach(port => {
-                    const option = document.createElement('option');
-                    option.value = port.comPort;
-                    option.textContent = port.comPort;
-                    select.appendChild(option);
-                });
+            // Restore giá trị đã chọn nếu port vẫn còn
+            if (currentValue && ports.some(p => p.comPort === currentValue)) {
+                select.value = currentValue;
             }
-        });
+        }
+    }
+});
+
+socket.on('kitList', (kits) => {
+    updateKitTable(kits);
+});
+
+
+        socket.on('kitList', (kits) => {
+    updateKitTable(kits);
+});
         
         // Event listeners
         document.getElementById('sendCliBtn').addEventListener('click', () => {
@@ -912,9 +966,6 @@
             socket.emit('requestKitList');
         });
         
-        document.getElementById('refreshComBtn').addEventListener('click', () => {
-            socket.emit('requestComList');
-        });
         
         document.getElementById('clearBtn').addEventListener('click', () => {
             document.getElementById('packetTableBody').innerHTML = '';
@@ -2923,58 +2974,96 @@ class VirtualScroll {
     }
     
     createRow(packet, index) {
-        const row = document.createElement('div');
-        row.className = 'virtual-row';
-        row.style.top = `${index * this.rowHeight}px`;
-        row.style.height = `${this.rowHeight}px`;
-        
-        const timestamp = packet.timestamp ? new Date(packet.timestamp).toLocaleString('vi-VN') : 'N/A';
-        const packetData = (packet.packet_data || '');
-        const displayData = packetData.length > 30 ? packetData.substring(0, 30) + '...' : packetData;
-        
-        const errorCodeText = getErrorCodeText(packet.type, packet.error_code || 0);
-        const isSuccess = errorCodeText === 'Success';
-        
-        row.innerHTML = `
-            <div class="col" style="width: 8%;">
-                <span class="badge bg-${packet.type === 'TX' ? 'success' : 'info'} fs-6">
-                    <i class="fas fa-${packet.type === 'TX' ? 'arrow-up' : 'arrow-down'} me-1"></i>${packet.type}
-                </span>
+    const row = document.createElement('div');
+    row.className = 'virtual-row';
+    row.style.top = `${index * this.rowHeight}px`;
+    row.style.height = `${this.rowHeight}px`;
+    
+    // Server timestamp
+    const serverTimestamp = packet.timestamp ? 
+        new Date(packet.timestamp).toLocaleString('vi-VN', {
+            month: '2-digit',
+            day: '2-digit', 
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        }) : 'N/A';
+    
+    // Kit timestamp - chuyển đổi từ Unix timestamp
+    const kitTimestamp = packet.kit_timestamp ? 
+        new Date(packet.kit_timestamp * 1000).toLocaleString('vi-VN', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit', 
+            minute: '2-digit',
+            second: '2-digit'
+        }) : 'N/A';
+    
+    const packetData = (packet.packet_data || '');
+    const displayData = packetData.length > 37 ? packetData.substring(0, 37) + '...' : packetData;
+    
+    const errorCodeText = getErrorCodeText(packet.type, packet.error_code || 0);
+    const isSuccess = errorCodeText === 'Success';
+    
+    // CRC display cho RX packets
+    const crcDisplay = packet.type === 'RX' && packet.crc_passed !== null ? 
+        `<span class="badge bg-${packet.crc_passed ? 'success' : 'danger'}">
+            <i class="fas fa-${packet.crc_passed ? 'check' : 'times'} me-1"></i>
+            ${packet.crc_passed ? 'PASS' : 'FAIL'}
+        </span>` : 
+        '<span class="text-muted">N/A</span>';
+    
+    row.innerHTML = `
+        <div class="col" style="width: 8%;">
+            <span class="badge bg-${packet.type === 'TX' ? 'success' : 'info'} fs-6">
+                <i class="fas fa-${packet.type === 'TX' ? 'arrow-up' : 'arrow-down'} me-1"></i>${packet.type}
+            </span>
+        </div>
+        <div class="col" style="width: 15%;">
+            <div class="time-column">
+                <div class="server-time">
+                    <span class="time-label">SRV:</span> ${serverTimestamp}
+                </div>
+                <div class="kit-time">
+                    <span class="time-label">KIT:</span> ${kitTimestamp}
+                </div>
             </div>
-            <div class="col" style="width: 12%;">${timestamp}</div>
-            <div class="col" style="width: 8%;">
-                <span class="badge bg-secondary">${packet.packet_length || packet.packetLength || 0}</span>
-            </div>
-            <div class="col" style="width: 12%;">
-                <code class="text-primary">${(packet.kit_unique || 'N/A').substring(0, 12)}...</code>
-            </div>
-            <div class="col" style="width: 10%;">
-                <span class="badge bg-dark">${packet.com_port || 'N/A'}</span>
-            </div>
-            <div class="col" style="width: 10%;">
-                <span class="badge bg-${isSuccess ? 'success' : 'danger'}">${errorCodeText}</span>
-            </div>
-            <div class="col" style="width: 6%;">
-                <span class="badge bg-${packet.is_ack ? 'warning' : 'light'}">${packet.is_ack ? 'ACK' : 'DATA'}</span>
-            </div>
-            <div class="col" style="width: 8%;">
-                <span class="badge bg-info">${packet.channel || 0}</span>
-            </div>
-            <div class="col" style="width: 8%;">
-                ${packet.type === 'RX' && packet.rssi ? `<span class="badge bg-info">${packet.rssi} dBm</span>` : '<span class="text-muted">N/A</span>'}
-            </div>
-            <div class="col" style="width: 6%;">
-                ${packet.type === 'RX' && packet.lqi ? `<span class="badge bg-primary">${packet.lqi}</span>` : '<span class="text-muted">N/A</span>'}
-            </div>
-            <div class="col" style="width: 12%;">
-                <a href="#" class="packet-data-link" data-packet='${JSON.stringify(packet).replace(/'/g, "&apos;")}' title="Click to analyze packet">
-                    ${displayData}
-                </a>
-            </div>
-        `;
-        
-        return row;
-    }
+        </div>
+        <div class="col" style="width: 7%;">
+            <span class="badge bg-secondary">${packet.packet_length || packet.packetLength || 0}</span>
+        </div>
+        <div class="col" style="width: 10%;">
+            <code class="text-primary">${(packet.kit_unique || 'N/A').substring(0, 16)}...</code>
+        </div>
+        <div class="col" style="width: 8%;">
+            <span class="badge bg-dark">${packet.com_port || 'N/A'}</span>
+        </div>
+        <div class="col" style="width: 8%;">
+            <span class="badge bg-${isSuccess ? 'success' : 'danger'}">${errorCodeText}</span>
+        </div>
+        <div class="col" style="width: 5%;">
+            <span class="badge bg-${packet.is_ack ? 'warning' : 'primary'}">${packet.is_ack ? 'ACK' : 'DATA'}</span>
+        </div>
+        <div class="col" style="width: 6%;">
+            <span class="badge bg-info">${packet.channel || 0}</span>
+        </div>
+        <div class="col" style="width: 6%;">${crcDisplay}</div>
+        <div class="col" style="width: 6%;">
+            ${packet.type === 'RX' && packet.rssi ? `<span class="badge bg-info">${packet.rssi} dBm</span>` : '<span class="text-muted">N/A</span>'}
+        </div>
+        <div class="col" style="width: 5%;">
+            ${packet.type === 'RX' && packet.lqi ? `<span class="badge bg-primary">${packet.lqi}</span>` : '<span class="text-muted">N/A</span>'}
+        </div>
+        <div class="col" style="width: 11%;">
+            <a href="#" class="packet-data-link" data-packet='${JSON.stringify(packet).replace(/'/g, "&apos;")}' title="Click to analyze packet">
+                ${displayData}
+            </a>
+        </div>
+    `;
+    
+    return row;
+}
+
 }
 
 // Initialize Virtual Scroll

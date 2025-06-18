@@ -185,7 +185,7 @@ async function connectToPort(path, io, clientComPorts) {
                                 let errorCode = frameData[4 + packetLength + 8];
                                 let isAck = frameData[4 + packetLength + 9] === 1;
                                 let channel = frameData[4 + packetLength + 10];
-                                let timestamp = frameData.readUInt32LE(4 + packetLength + 11);
+                                let kitTimestamp = frameData.readUInt32LE(4 + packetLength + 11);
                                 
                                 let packetInfo = {
                                     type: state === "binary_tx" ? 'TX' : 'RX',
@@ -195,7 +195,8 @@ async function connectToPort(path, io, clientComPorts) {
                                     errorCode,
                                     isAck,
                                     channel,
-                                    comPort: path
+                                    comPort: path,
+                                    kitTimestamp: kitTimestamp
                                 };
 
                                 // Thêm thông tin RX nếu là frame RX

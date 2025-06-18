@@ -83,6 +83,16 @@ io.on('connection', socket => {
         }
     });
 
+    // Thêm vào server.js
+    socket.on('requestKitUpdate', async () => {
+    try {
+        const kits = await getAllKits();
+        socket.emit('kitList', kits);
+    } catch (error) {
+        console.error('Lỗi khi cập nhật danh sách kit:', error);
+    }
+});
+
     socket.on('disconnect', () => {
         console.log('Client disconnected');
         clientComPorts.delete(socket.id);
