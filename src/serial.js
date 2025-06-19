@@ -111,7 +111,7 @@ async function connectToPort(path, io, clientComPorts) {
                             // Tìm kết thúc string
                             let endPos = -1;
                             for (let i = offset; i < buffer.length - 1; i++) {
-                                if ((buffer[i] === 0x0D && buffer[i + 1] === 0x0A) ||
+                                if ((buffer[i] === 0x0D && buffer[i + 1] === 0x0A) &&
                                     (buffer[i] === 0x3E && buffer[i + 1] === 0x20)) {
                                     endPos = i + 2;
                                     break;
