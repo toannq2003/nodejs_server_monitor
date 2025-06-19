@@ -835,6 +835,47 @@
     <script>
         const socket = io();
         let selectedPacket = null;
+
+        // Thêm vào phần cập nhật bảng kit (trong function updateKitTable hoặc tương tự)
+function makeKitClickable() {
+    // Tìm tất cả các cell chứa kit_unique và thêm sự kiện click
+    document.querySelectorAll('[data-kit-unique]').forEach(cell => {
+        cell.style.cursor = 'pointer';
+        cell.style.color = '#007bff';
+        cell.style.textDecoration = 'none';
+        
+        cell.addEventListener('click', function() {
+            const kitUnique = this.getAttribute('data-kit-unique');
+            window.location.href = `/kit-stats?kit=${kitUnique}`;
+        });
+    });
+}
+
+// Cập nhật phần hiển thị kit trong bảng để thêm data-kit-unique attribute
+// Ví dụ khi tạo row cho kit:
+// function addKitToTable(kit) {
+//     const row = document.createElement('tr');
+//     row.innerHTML = `
+//         <td data-kit-unique="${kit.kit_unique}" style="cursor: pointer; color: #007bff; text-decoration: underline;">
+//             ${kit.kit_unique}
+//         </td>
+//         <td>${kit.com_port}</td>
+//         <td>${kit.status}</td>
+//         <td>${new Date(kit.last_seen).toLocaleString('vi-VN')}</td>
+//         <td>${kit.packet_count}</td>
+//         <td>N/A</td>
+//     `;
+    
+//     // Thêm sự kiện click cho cell đầu tiên
+//     const kitCell = row.querySelector('[data-kit-unique]');
+//     kitCell.addEventListener('click', function() {
+//         const kitUnique = this.getAttribute('data-kit-unique');
+//         window.location.href = `/kit-stats?kit=${kitUnique}`;
+//     });
+    
+//     return row;
+// }
+
         
         // Socket connection handling
         socket.on('connect', () => {
@@ -932,14 +973,6 @@ socket.on('comList', (ports) => {
     }
 });
 
-socket.on('kitList', (kits) => {
-    updateKitTable(kits);
-});
-
-
-        socket.on('kitList', (kits) => {
-    updateKitTable(kits);
-});
         
         // Event listeners
         document.getElementById('sendCliBtn').addEventListener('click', () => {
@@ -982,7 +1015,7 @@ socket.on('kitList', (kits) => {
                 const statusIcon = kit.status === 'online' ? 'circle' : 'circle-xmark';
                 
                 row.innerHTML = `
-                    <td><code class="text-primary">${kit.kit_unique.substring(0, 16)}...</code></td>
+                    <td data-kit-unique="${kit.kit_unique}"><code class="text-primary">${kit.kit_unique.substring(0, 16)}...</code></td>
                     <td><span class="badge bg-dark">${kit.com_port}</span></td>
                     <td><span class="badge bg-${statusClass}"><i class="fas fa-${statusIcon} me-1"></i>${kit.status}</span></td>
                     <td><small class="text-muted">${lastSeen}</small></td>
@@ -991,6 +1024,8 @@ socket.on('kitList', (kits) => {
                 `;
                 tbody.appendChild(row);
             });
+
+            makeKitClickable(); // Gọi sau khi tạo xong bảng
         }
         
         // Generate signal strength bars

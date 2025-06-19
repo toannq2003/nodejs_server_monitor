@@ -85,7 +85,7 @@ async function savePacketData({ type, packetLength, packetData, kitUnique, error
             INSERT INTO packet_data (type, packet_length, packet_data, kit_unique, error_code, is_ack, channel, com_port, kit_timestamp, rssi, lqi, crc_passed, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `;
-        await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, kitTimestamp, rssi || null, lqi || null, crcPassed || null]);
+        await pool.execute(query, [type, packetLength, packetData, kitUnique, errorCode, isAck, channel, comPort, kitTimestamp, rssi || null, null || lqi, null || crcPassed]);
     } else {
         // Lưu packet TX chỉ với thông tin cơ bản
         const query = `
@@ -182,12 +182,123 @@ async function getFilteredPacketData(filters = {}) {
     return rows;
 }
 
+// Thêm vào cuối file database.js, trước module.exports
+
+async function getKitStatistics(kitUnique) {
+    const pool = await poolPromise;
+    
+    try {
+        // Lấy thông tin kit
+        const [kitInfo] = await pool.execute(
+            'SELECT * FROM kits WHERE kit_unique = ?',
+            [kitUnique]
+        );
+        
+        if (kitInfo.length === 0) {
+            throw new Error('Kit không tồn tại');
+        }
+        
+        // Thống kê tổng quan
+        const [totalStats] = await pool.execute(`
+            SELECT 
+                COUNT(*) as totalPackets,
+                SUM(CASE WHEN type = 'TX' AND is_ack = 0 THEN 1 ELSE 0 END) as dataTxPackets,
+                SUM(CASE WHEN type = 'RX' AND is_ack = 0 THEN 1 ELSE 0 END) as dataRxPackets,
+                SUM(CASE WHEN type = 'TX' AND is_ack = 1 THEN 1 ELSE 0 END) as ackTxPackets,
+                SUM(CASE WHEN type = 'RX' AND is_ack = 1 THEN 1 ELSE 0 END) as ackRxPackets,
+                SUM(CASE WHEN is_ack = 1 THEN 1 ELSE 0 END) as ackPackets
+            FROM packet_data 
+            WHERE kit_unique = ?
+        `, [kitUnique]);
+        
+        // Thống kê RX (PER, RSSI, LQI)
+        const [rxStats] = await pool.execute(`
+            SELECT 
+                COUNT(*) as totalRxPackets,
+                SUM(CASE WHEN error_code = 1 THEN 1 ELSE 0 END) as crcFailedPackets,
+                AVG(CASE WHEN rssi IS NOT NULL THEN rssi END) as avgRssi,
+                MIN(CASE WHEN rssi IS NOT NULL THEN rssi END) as minRssi,
+                MAX(CASE WHEN rssi IS NOT NULL THEN rssi END) as maxRssi,
+                AVG(CASE WHEN lqi IS NOT NULL THEN lqi END) as avgLqi
+            FROM packet_data 
+            WHERE kit_unique = ? AND type = 'RX'
+        `, [kitUnique]);
+        
+        // Thống kê lỗi TX
+        const [txErrors] = await pool.execute(`
+            SELECT error_code, COUNT(*) as count
+            FROM packet_data 
+            WHERE kit_unique = ? AND type = 'TX'
+            GROUP BY error_code
+            ORDER BY error_code
+        `, [kitUnique]);
+        
+        // Thống kê lỗi RX
+        const [rxErrors] = await pool.execute(`
+            SELECT error_code, COUNT(*) as count
+            FROM packet_data 
+            WHERE kit_unique = ? AND type = 'RX'
+            GROUP BY error_code
+            ORDER BY error_code
+        `, [kitUnique]);
+        
+        // Tính toán PER
+        const totalRx = rxStats[0].totalRxPackets || 0;
+        const crcFailed = rxStats[0].crcFailedPackets || 0;
+        const per = totalRx > 0 ? ((crcFailed / totalRx) * 100).toFixed(2) : 0;
+        
+        
+        // Chuẩn bị dữ liệu trả về
+        const stats = {
+            totalPackets: totalStats[0].totalPackets || 0,
+            dataTxPackets: totalStats[0].dataTxPackets || 0,
+            dataRxPackets: totalStats[0].dataRxPackets || 0,
+            ackTxPackets: totalStats[0].ackTxPackets || 0,
+            ackRxPackets: totalStats[0].ackRxPackets || 0,
+            per: per,
+            avgRssi: parseFloat(rxStats[0].avgRssi || '0').toFixed(2),
+            minRssi: rxStats[0].minRssi || 0,
+            maxRssi: rxStats[0].maxRssi || 0,
+            avgLqi: parseFloat(rxStats[0].avgLqi || '0').toFixed(2),
+            txErrors: {},
+            rxErrors: {}
+        };
+
+        // Log chi tiết để kiểm tra
+console.log('avgRssi value:', rxStats[0].avgRssi);
+console.log('avgRssi type:', typeof rxStats[0].avgRssi);
+console.log('avgRssi constructor:', rxStats[0].avgRssi.constructor.name);
+console.log('Is Number?', rxStats[0].avgRssi instanceof Number);
+        
+        // Chuyển đổi lỗi thành object
+        txErrors.forEach(error => {
+            stats.txErrors[error.error_code] = error.count;
+        });
+        
+        rxErrors.forEach(error => {
+            stats.rxErrors[error.error_code] = error.count;
+        });
+        
+        return {
+            kitInfo: kitInfo[0],
+            stats: stats
+        };
+        
+    } catch (error) {
+        console.error('Lỗi khi lấy thống kê kit:', error);
+        throw error;
+    }
+}
+
+// Cập nhật module.exports
 module.exports = {
     savePacketData,
     getAllPacketData,
-    getFilteredPacketData, // Thêm function mới
+    getFilteredPacketData,
     getAllKits,
     updateKitStatus,
-    updateOrInsertKit
+    updateOrInsertKit,
+    getKitStatistics // Thêm function mới
 };
+
 

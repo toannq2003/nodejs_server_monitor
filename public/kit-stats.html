@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thống kê Kit</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        .kit-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+        .stat-value {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .error-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .error-table th, .error-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .error-table th {
+            background-color: #f8f9fa;
+        }
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .back-btn:hover {
+            background: #5a6268;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Thống kê Kit</h1>
+            <a href="/" class="back-btn">← Quay lại</a>
+        </div>
+        
+        <div id="loading" class="loading">
+            Đang tải dữ liệu...
+        </div>
+        
+        <div id="content" style="display: none;">
+            <div class="kit-info">
+                <h2>Thông tin Kit: <span id="kitId"></span></h2>
+                <div class="stat-item">
+                    <span>COM Port:</span>
+                    <span id="comPort" class="stat-value"></span>
+                </div>
+                <div class="stat-item">
+                    <span>Trạng thái:</span>
+                    <span id="status" class="stat-value"></span>
+                </div>
+                <div class="stat-item">
+                    <span>Lần hoạt động cuối:</span>
+                    <span id="lastSeen" class="stat-value"></span>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>📊 Thống kê Tổng quan</h3>
+                    <div class="stat-item">
+                        <span>Tổng số gói:</span>
+                        <span id="totalPackets" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Gói Data Tx:</span>
+                        <span id="dataTxPackets" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Gói Data Rx:</span>
+                        <span id="dataRxPackets" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Gói Ack Tx:</span>
+                        <span id="ackTxPackets" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>Gói Ack Rx:</span>
+                        <span id="ackRxPackets" class="stat-value">0</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>📡 Thống kê RX</h3>
+                    <div class="stat-item">
+                        <span>PER (Packet Error Rate):</span>
+                        <span id="per" class="stat-value">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>RSSI Trung bình:</span>
+                        <span id="avgRssi" class="stat-value">0 dBm</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>RSSI Min/Max:</span>
+                        <span id="minMaxRssi" class="stat-value">0/0 dBm</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>LQI Trung bình:</span>
+                        <span id="avgLqi" class="stat-value">0</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>⚠️ Lỗi TX</h3>
+                    <table class="error-table">
+                        <thead>
+                            <tr>
+                                <th>Mã lỗi</th>
+                                <th>Mô tả</th>
+                                <th>Số lần</th>
+                            </tr>
+                        </thead>
+                        <tbody id="txErrors">
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>⚠️ Lỗi RX</h3>
+                    <table class="error-table">
+                        <thead>
+                            <tr>
+                                <th>Mã lỗi</th>
+                                <th>Mô tả</th>
+                                <th>Số lần</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rxErrors">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const urlParams = new URLSearchParams(window.location.search);
+        const kitUnique = urlParams.get('kit');
+        
+        const txErrorCodes = {
+            0: 'Thành công',
+            1: 'Channel Busy (CCA failed)',
+            2: 'TX Blocked',
+            3: 'TX Aborted',
+            4: 'Scheduled TX Missed',
+            5: 'No ACK (ACK timeout)',
+            6: 'TXACK Aborted'
+        };
+        
+        const rxErrorCodes = {
+            0: 'Thành công',
+            1: 'CRC error',
+            2: 'Format error',
+            3: 'Aborted',
+            4: 'Filtered',
+            99: 'Unknown'
+        };
+        
+        if (!kitUnique) {
+            document.getElementById('loading').innerHTML = 'Không tìm thấy Kit ID';
+        } else {
+            document.getElementById('kitId').textContent = kitUnique;
+            socket.emit('requestKitStats', kitUnique);
+        }
+        
+        socket.on('kitStats', (data) => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+            
+            // Hiển thị thông tin kit
+            document.getElementById('comPort').textContent = data.kitInfo.com_port || 'N/A';
+            document.getElementById('status').textContent = data.kitInfo.status || 'N/A';
+            document.getElementById('lastSeen').textContent = data.kitInfo.last_seen ? 
+                new Date(data.kitInfo.last_seen).toLocaleString('vi-VN') : 'N/A';
+            
+            // Thống kê tổng quan
+            document.getElementById('totalPackets').textContent = data.stats.totalPackets;
+            document.getElementById('dataTxPackets').textContent = data.stats.dataTxPackets;
+            document.getElementById('dataRxPackets').textContent = data.stats.dataRxPackets;
+            document.getElementById('ackTxPackets').textContent = data.stats.ackTxPackets;
+            document.getElementById('ackRxPackets').textContent = data.stats.ackRxPackets;
+            
+            // Thống kê RX
+            document.getElementById('per').textContent = data.stats.per + '%';
+            document.getElementById('avgRssi').textContent = data.stats.avgRssi + ' dBm';
+            document.getElementById('minMaxRssi').textContent = 
+                data.stats.minRssi + '/' + data.stats.maxRssi + ' dBm';
+            document.getElementById('avgLqi').textContent = data.stats.avgLqi;
+            
+            // Hiển thị lỗi TX
+            const txErrorsTable = document.getElementById('txErrors');
+            txErrorsTable.innerHTML = '';
+            Object.entries(data.stats.txErrors).forEach(([code, count]) => {
+                const row = txErrorsTable.insertRow();
+                row.insertCell(0).textContent = code;
+                row.insertCell(1).textContent = txErrorCodes[code] || 'Unknown';
+                row.insertCell(2).textContent = count;
+            });
+            
+            // Hiển thị lỗi RX
+            const rxErrorsTable = document.getElementById('rxErrors');
+            rxErrorsTable.innerHTML = '';
+            Object.entries(data.stats.rxErrors).forEach(([code, count]) => {
+                const row = rxErrorsTable.insertRow();
+                row.insertCell(0).textContent = code;
+                row.insertCell(1).textContent = rxErrorCodes[code] || 'Unknown';
+                row.insertCell(2).textContent = count;
+            });
+        });
+        
+        socket.on('kitStatsError', (error) => {
+            document.getElementById('loading').innerHTML = 'Lỗi: ' + error;
+        });
+    </script>
+</body>
+</html>

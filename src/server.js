@@ -4,7 +4,8 @@ const socketIo = require('socket.io');
 const path = require('path');
 const dotenv = require('dotenv');
 const { monitorPorts, sendCliCommand, getConnectedPorts } = require('./serial');
-const { getAllPacketData, getAllKits, getFilteredPacketData } = require('./database');
+// Thêm import
+const { getAllPacketData, getAllKits, getFilteredPacketData, getKitStatistics } = require('./database');
 
 dotenv.config();
 
@@ -97,6 +98,23 @@ io.on('connection', socket => {
         console.log('Client disconnected');
         clientComPorts.delete(socket.id);
     });
+
+    // Thêm socket handler (trong phần io.on('connection', socket => {...}))
+socket.on('requestKitStats', async (kitUnique) => {
+    try {
+        const data = await getKitStatistics(kitUnique);
+        socket.emit('kitStats', data);
+    } catch (error) {
+        console.error('Lỗi khi lấy thống kê kit:', error);
+        socket.emit('kitStatsError', error.message);
+    }
+});
+
+});
+
+// Thêm route cho trang thống kê kit (sau route cho trang chính)
+app.get('/kit-stats', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/kit-stats.html'));
 });
 
 monitorPorts(io, clientComPorts);
