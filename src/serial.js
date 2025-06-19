@@ -214,11 +214,11 @@ async function connectToPort(path, io, clientComPorts) {
                                     // Lưu vào database
                                     await savePacketData(packetInfo);
                                     
-                                    // Gửi dữ liệu real-time cho client
-                                    // io.to('indexRoom').emit('newPacketData', {
-                                    //     ...packetInfo,
-                                    //     timestamp: new Date()
-                                    // });
+                                    //Gửi dữ liệu real-time cho client
+                                    io.to('indexRoom').emit('newPacketData', {
+                                        ...packetInfo,
+                                        timestamp: new Date()
+                                    });
                                     
                                     // Gửi cập nhật kit
                                     io.to('indexRoom').emit('requestKitUpdate');
