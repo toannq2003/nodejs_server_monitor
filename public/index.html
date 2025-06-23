@@ -942,12 +942,18 @@ function makeKitClickable() {
         socket.on('newPacketData', (data) => {
             addPacketToTable(data);
         });
+
+        // Handle kit update request
+        socket.on('requestKitUpdate', () => {
+            socket.emit('requestKitList');
+        });
         
         socket.on('cliResponse', (data) => {
             const cliResponses = document.getElementById('cliResponses');
             const timestamp = new Date().toLocaleTimeString();
-            cliResponses.innerHTML += `<div style="color: #ffff00;">[${timestamp}] ${data.comPort}></div><div style="color: #00ff41;">${data.response}</div>`;
+            cliResponses.innerHTML += `<div><span style="color: #ffff00;">[${timestamp}] ${data.comPort}></span><span style="color: #00ff41; white-space: pre-line;"> ${data.response}</span><div>`;
             cliResponses.scrollTop = cliResponses.scrollHeight;
+            console.log(`response: ${data.response}`)
         });
         
         // Socket event handlers - đảm bảo có đủ các handler này
@@ -1000,9 +1006,9 @@ socket.on('comList', (ports) => {
         });
         
         
-        document.getElementById('clearBtn').addEventListener('click', () => {
-            document.getElementById('packetTableBody').innerHTML = '';
-        });
+        // document.getElementById('clearBtn').addEventListener('click', () => {
+        //     document.getElementById('packetTableBody').innerHTML = '';
+        // });
                 // Update kit table with enhanced display
         function updateKitTable(kits) {
             const tbody = document.getElementById('kitTableBody');
@@ -1010,16 +1016,16 @@ socket.on('comList', (ports) => {
             
             kits.forEach(kit => {
                 const row = document.createElement('tr');
-                const lastSeen = new Date(kit.last_seen).toLocaleString('vi-VN');
+                const lastSeen = new Date(kit.lastSeen).toLocaleString('vi-VN');
                 const statusClass = kit.status === 'online' ? 'success' : 'secondary';
                 const statusIcon = kit.status === 'online' ? 'circle' : 'circle-xmark';
                 
                 row.innerHTML = `
-                    <td data-kit-unique="${kit.kit_unique}"><code class="text-primary">${kit.kit_unique.substring(0, 16)}...</code></td>
-                    <td><span class="badge bg-dark">${kit.com_port}</span></td>
+                    <td data-kit-unique="${kit.kitUnique}"><code class="text-primary">${kit.kitUnique.substring(0, 16)}...</code></td>
+                    <td><span class="badge bg-dark">${kit.comPort}</span></td>
                     <td><span class="badge bg-${statusClass}"><i class="fas fa-${statusIcon} me-1"></i>${kit.status}</span></td>
                     <td><small class="text-muted">${lastSeen}</small></td>
-                    <td><span class="badge bg-info">${kit.packet_count}</span></td>
+                    <td><span class="badge bg-info">${kit.packetCount}</span></td>
                     <td>${generateSignalBars(kit.avg_rssi)}</td>
                 `;
                 tbody.appendChild(row);
@@ -1050,6 +1056,7 @@ socket.on('comList', (ports) => {
         
         // Update packet table with enhanced styling
         function updatePacketTable(data) {
+            console.log(`2345`);
             const tbody = document.getElementById('packetTableBody');
             tbody.innerHTML = '';
             
@@ -1061,6 +1068,8 @@ socket.on('comList', (ports) => {
         // Add packet to table with professional styling
         function addPacketToTable(packet) {
             if (!packet) return;
+
+            console.log(`crc_passed: ${packet.crc_passed}`);
             
             const tbody = document.getElementById('packetTableBody');
             const row = document.createElement('tr');
@@ -2954,15 +2963,16 @@ class VirtualScroll {
         
         this.filteredData = this.data.filter(item => {
             if (typeFilter && item.type !== typeFilter) return false;
-            if (kitFilter && item.kit_unique !== kitFilter) return false;
-            if (comFilter && item.com_port !== comFilter) return false;
-            if (dataFilter && !item.packet_data.toLowerCase().includes(dataFilter)) return false;
+            if (kitFilter && item.kitUnique !== kitFilter) return false;
+            if (comFilter && item.comPort !== comFilter) return false;
+            if (dataFilter && !item.packetData.toLowerCase().includes(dataFilter)) return false;
             return true;
         });
         
         this.updateFilterStats();
         this.updateViewport();
         this.render();
+        console.log(`Đã render`);
     }
     
     updateFilterStats() {
@@ -3025,26 +3035,30 @@ class VirtualScroll {
         }) : 'N/A';
     
     // Kit timestamp - chuyển đổi từ Unix timestamp
-    const kitTimestamp = packet.kit_timestamp ? 
-        new Date(packet.kit_timestamp * 1000).toLocaleString('vi-VN', {
+    const kitTimestamp = packet.kitTimestamp ? 
+        new Date(packet.kitTimestamp * 1000).toLocaleString('vi-VN', {
             month: '2-digit',
             day: '2-digit',
             hour: '2-digit', 
             minute: '2-digit',
             second: '2-digit'
-        }) : 'N/A';
+        }) : `${packet.kitTimestamp}`;
     
-    const packetData = (packet.packet_data || '');
+    const packetData = (packet.packetData || '');
     const displayData = packetData.length > 37 ? packetData.substring(0, 37) + '...' : packetData;
     
-    const errorCodeText = getErrorCodeText(packet.type, packet.error_code || 0);
+    const errorCodeText = getErrorCodeText(packet.type, packet.errorCode || 0);
     const isSuccess = errorCodeText === 'Success';
+    if (packet.type === 'RX')
+    {
+        console.log(`crc_passed ${packet.crc_passed}, crcPassed ${packet.crcPassed}`);
+    }
     
     // CRC display cho RX packets
-    const crcDisplay = packet.type === 'RX' && packet.crc_passed !== null ? 
-        `<span class="badge bg-${packet.crc_passed ? 'success' : 'danger'}">
-            <i class="fas fa-${packet.crc_passed ? 'check' : 'times'} me-1"></i>
-            ${packet.crc_passed ? 'PASS' : 'FAIL'}
+    const crcDisplay = packet.type === 'RX' && packet.crcPassed !== null ? 
+        `<span class="badge bg-${packet.crcPassed ? 'success' : 'danger'}">
+            <i class="fas fa-${packet.crcPassed ? 'check' : 'times'} me-1"></i>
+            ${packet.crcPassed ? 'PASS' : 'FAIL'}
         </span>` : 
         '<span class="text-muted">N/A</span>';
     
@@ -3065,29 +3079,29 @@ class VirtualScroll {
             </div>
         </div>
         <div class="col" style="width: 7%;">
-            <span class="badge bg-secondary">${packet.packet_length || packet.packetLength || 0}</span>
+            <span class="badge bg-secondary">${packet.packetLength || 0}</span>
         </div>
         <div class="col" style="width: 10%;">
-            <code class="text-primary">${(packet.kit_unique || 'N/A').substring(0, 16)}...</code>
+            <code class="text-primary">${(packet.kitUnique || 'N/A').substring(0, 16)}...</code>
         </div>
         <div class="col" style="width: 8%;">
-            <span class="badge bg-dark">${packet.com_port || 'N/A'}</span>
+            <span class="badge bg-dark">${packet.comPort || 'N/A'}</span>
         </div>
         <div class="col" style="width: 8%;">
             <span class="badge bg-${isSuccess ? 'success' : 'danger'}">${errorCodeText}</span>
         </div>
         <div class="col" style="width: 5%;">
-            <span class="badge bg-${packet.is_ack ? 'warning' : 'primary'}">${packet.is_ack ? 'ACK' : 'DATA'}</span>
+            <span class="badge bg-${packet.isAck ? 'warning' : 'primary'}">${packet.isAck ? 'ACK' : 'DATA'}</span>
         </div>
         <div class="col" style="width: 6%;">
             <span class="badge bg-info">${packet.channel || 0}</span>
         </div>
         <div class="col" style="width: 6%;">${crcDisplay}</div>
         <div class="col" style="width: 6%;">
-            ${packet.type === 'RX' && packet.rssi ? `<span class="badge bg-info">${packet.rssi} dBm</span>` : '<span class="text-muted">N/A</span>'}
+            ${packet.type === 'RX' ? `<span class="badge bg-info">${packet.rssi} dBm</span>` : '<span class="text-muted">N/A</span>'}
         </div>
         <div class="col" style="width: 5%;">
-            ${packet.type === 'RX' && packet.lqi ? `<span class="badge bg-primary">${packet.lqi}</span>` : '<span class="text-muted">N/A</span>'}
+            ${packet.type === 'RX' ? `<span class="badge bg-primary">${packet.lqi}</span>` : '<span class="text-muted">N/A</span>'}
         </div>
         <div class="col" style="width: 11%;">
             <a href="#" class="packet-data-link" data-packet='${JSON.stringify(packet).replace(/'/g, "&apos;")}' title="Click to analyze packet">
@@ -3107,6 +3121,7 @@ let allPacketData = [];
 
 // Update packet table functions
 function updatePacketTable(data) {
+    console.log(`3456`);
     allPacketData = data;
     updateFilterOptions();
     if (virtualScroll) {
@@ -3116,6 +3131,8 @@ function updatePacketTable(data) {
 
 function addPacketToTable(packet) {
     if (!packet) return;
+
+    console.log(`1234`);
     
     allPacketData.unshift(packet);
     
@@ -3134,7 +3151,7 @@ function addPacketToTable(packet) {
 function updateFilterOptions() {
     // Update Kit filter
     const kitFilter = document.getElementById('kitFilter');
-    const uniqueKits = [...new Set(allPacketData.map(p => p.kit_unique).filter(k => k))];
+    const uniqueKits = [...new Set(allPacketData.map(p => p.kitUnique).filter(k => k))];
     kitFilter.innerHTML = '<option value="">All Kits</option>';
     uniqueKits.forEach(kit => {
         const option = document.createElement('option');
@@ -3145,7 +3162,7 @@ function updateFilterOptions() {
     
     // Update COM filter
     const comFilter = document.getElementById('comFilter');
-    const uniqueComs = [...new Set(allPacketData.map(p => p.com_port).filter(c => c))];
+    const uniqueComs = [...new Set(allPacketData.map(p => p.comPort).filter(c => c))];
     comFilter.innerHTML = '<option value="">All Ports</option>';
     uniqueComs.forEach(com => {
         const option = document.createElement('option');
@@ -3166,7 +3183,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Add filter event listeners
         document.getElementById('typeFilter').addEventListener('change', () => {
-            if (virtualScroll) virtualScroll.applyFilters();
+            console.log(`hello123`);
+            if (virtualScroll)
+            {
+                console.log(`123456`); 
+                virtualScroll.applyFilters();
+            }
         });
         
         document.getElementById('kitFilter').addEventListener('change', () => {

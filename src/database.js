@@ -52,6 +52,27 @@ async function initializeDatabase() {
             )
         `);
 
+        // 2. Tạo VIEW bảng packet_data với các trường đã đổi tên
+        await pool.execute(`
+        CREATE OR REPLACE VIEW v_packet_data AS
+        SELECT 
+            id,
+            type,
+            packet_length AS packetLength,
+            packet_data AS packetData,
+            kit_unique AS kitUnique,
+            error_code AS errorCode,
+            is_ack AS isAck,
+            channel,
+            timestamp,
+            kit_timestamp AS kitTimestamp,
+            com_port AS comPort,
+            rssi,
+            lqi,
+            crc_passed AS crcPassed
+        FROM packet_data
+        `);
+
         // Tạo bảng kits để quản lý danh sách kit
         await pool.execute(`
             CREATE TABLE IF NOT EXISTS kits (
@@ -65,6 +86,28 @@ async function initializeDatabase() {
                 INDEX idx_status (status)
             )
         `);
+
+
+
+        // 2. Tạo VIEW bảng kits với các trường đã đổi tên
+        await pool.execute(`
+        CREATE OR REPLACE VIEW v_kits AS
+        SELECT
+            id,
+            kit_unique AS kitUnique,
+            com_port AS comPort,
+            last_seen AS lastSeen,
+            status,
+            packet_count AS packetCount
+        FROM kits;
+        `);
+
+        console.log(`Tạo view thành công`);
+
+
+
+
+        
 
         return pool;
     } catch (err) {
@@ -128,15 +171,16 @@ async function updateOrInsertKit(kitUnique, comPort) {
 async function getAllPacketData() {
     const pool = await poolPromise;
     const [rows] = await pool.execute(
-        'SELECT * FROM packet_data ORDER BY timestamp DESC LIMIT 1000'
+        'SELECT * FROM v_packet_data ORDER BY timestamp DESC LIMIT 1000'
     );
+    // console.table(rows);
     return rows;
 }
 
 async function getAllKits() {
     const pool = await poolPromise;
     const [rows] = await pool.execute(
-        'SELECT * FROM kits ORDER BY last_seen DESC'
+        'SELECT * FROM v_kits ORDER BY lastSeen DESC'
     );
     return rows;
 }
@@ -152,7 +196,7 @@ async function updateKitStatus(comPort, status) {
 // Thêm function lấy dữ liệu với filter
 async function getFilteredPacketData(filters = {}) {
     const pool = await poolPromise;
-    let query = 'SELECT * FROM packet_data WHERE 1=1';
+    let query = 'SELECT * FROM v_packet_data WHERE 1=1';
     const params = [];
     
     if (filters.type) {
@@ -161,17 +205,17 @@ async function getFilteredPacketData(filters = {}) {
     }
     
     if (filters.kit_unique) {
-        query += ' AND kit_unique = ?';
-        params.push(filters.kit_unique);
+        query += ' AND kitUnique = ?';
+        params.push(filters.kitUnique);
     }
     
     if (filters.com_port) {
-        query += ' AND com_port = ?';
-        params.push(filters.com_port);
+        query += ' AND comPort = ?';
+        params.push(filters.comPort);
     }
     
     if (filters.search) {
-        query += ' AND packet_data LIKE ?';
+        query += ' AND packetData LIKE ?';
         params.push(`%${filters.search}%`);
     }
     
@@ -190,9 +234,11 @@ async function getKitStatistics(kitUnique) {
     try {
         // Lấy thông tin kit
         const [kitInfo] = await pool.execute(
-            'SELECT * FROM kits WHERE kit_unique = ?',
+            'SELECT * FROM v_kits WHERE kitUnique = ?',
             [kitUnique]
         );
+
+        console.log(kitInfo[0].lastSeen);
         
         if (kitInfo.length === 0) {
             throw new Error('Kit không tồn tại');
@@ -226,20 +272,20 @@ async function getKitStatistics(kitUnique) {
         
         // Thống kê lỗi TX
         const [txErrors] = await pool.execute(`
-            SELECT error_code, COUNT(*) as count
-            FROM packet_data 
-            WHERE kit_unique = ? AND type = 'TX'
-            GROUP BY error_code
-            ORDER BY error_code
+            SELECT errorCode, COUNT(*) as count
+            FROM v_packet_data 
+            WHERE kitUnique = ? AND type = 'TX'
+            GROUP BY errorCode
+            ORDER BY errorCode
         `, [kitUnique]);
         
         // Thống kê lỗi RX
         const [rxErrors] = await pool.execute(`
-            SELECT error_code, COUNT(*) as count
-            FROM packet_data 
-            WHERE kit_unique = ? AND type = 'RX'
-            GROUP BY error_code
-            ORDER BY error_code
+            SELECT errorCode, COUNT(*) as count
+            FROM v_packet_data 
+            WHERE kitUnique = ? AND type = 'RX'
+            GROUP BY errorCode
+            ORDER BY errorCode
         `, [kitUnique]);
         
         // Tính toán PER
@@ -272,11 +318,11 @@ console.log('Is Number?', rxStats[0].avgRssi instanceof Number);
         
         // Chuyển đổi lỗi thành object
         txErrors.forEach(error => {
-            stats.txErrors[error.error_code] = error.count;
+            stats.txErrors[error.errorCode] = error.count;
         });
         
         rxErrors.forEach(error => {
-            stats.rxErrors[error.error_code] = error.count;
+            stats.rxErrors[error.errorCode] = error.count;
         });
         
         return {

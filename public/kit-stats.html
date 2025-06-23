@@ -235,10 +235,10 @@
             document.getElementById('content').style.display = 'block';
             
             // Hiển thị thông tin kit
-            document.getElementById('comPort').textContent = data.kitInfo.com_port || 'N/A';
+            document.getElementById('comPort').textContent = data.kitInfo.comPort || 'N/A';
             document.getElementById('status').textContent = data.kitInfo.status || 'N/A';
-            document.getElementById('lastSeen').textContent = data.kitInfo.last_seen ? 
-                new Date(data.kitInfo.last_seen).toLocaleString('vi-VN') : 'N/A';
+            document.getElementById('lastSeen').textContent = data.kitInfo.lastSeen ? 
+                new Date(data.kitInfo.lastSeen).toLocaleString('vi-VN') : 'N/A';
             
             // Thống kê tổng quan
             document.getElementById('totalPackets').textContent = data.stats.totalPackets;
