@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch sử Packet Data</title>
+    <link rel="stylesheet" href="history.css">
+    <link rel="stylesheet" href="packet-analysis.css">
+</head>
+<body>
+    <div class="history-header">
+    <button id="backToIndex" class="btn-back">← Quay lại</button>
+</div>
+
+    <div class="container">
+        <h1>Lịch sử Packet Data</h1>
+        
+        
+        <!-- Bộ lọc -->
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="typeFilter">Type:</label>
+                    <select id="typeFilter">
+                        <option value="">Tất cả</option>
+                        <option value="TX">TX</option>
+                        <option value="RX">RX</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="kitUniqueFilter">Kit Unique:</label>
+                    <select id="kitUniqueFilter">
+                        <option value="">Tất cả</option>
+                        <!-- Options sẽ được load động -->
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="comPortFilter">COM Port:</label>
+                    <select id="comPortFilter">
+                        <option value="">Tất cả</option>
+                        <!-- Options sẽ được load động -->
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="packetDataFilter">Packet Data:</label>
+                    <input type="text" id="packetDataFilter" placeholder="Tìm kiếm trong dữ liệu">
+                </div>
+                
+                <div class="filter-group">
+                    <button id="applyFilter" class="btn btn-primary">Áp dụng</button>
+                    <button id="clearFilter" class="btn btn-secondary">Xóa bộ lọc</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Phần còn lại giữ nguyên -->
+        <div class="pagination-info">
+            <span id="recordCount">Đang tải...</span>
+            <div class="pagination-controls">
+                <button id="prevBtn" class="btn btn-nav" disabled>← Trước</button>
+                <span id="pageInfo">Trang 1</span>
+                <button id="nextBtn" class="btn btn-nav">Tiếp →</button>
+            </div>
+        </div>
+
+        <div class="virtual-scroll-container" id="virtualScrollContainer">
+            <div class="virtual-scroll-content" id="virtualScrollContent">
+                <table class="data-table">
+                    <thead id="tableHeader">
+                        <tr>
+                            <th>Type</th>
+                            <th>Packet Length</th>
+                            <th>Timestamp</th>
+                            <th>Kit Unique</th>
+                            <th>COM Port</th>
+                            <th>Error Code</th>
+                            <th>Is ACK</th>
+                            <th>Channel</th>
+                            <th>CRC Passed</th>
+                            <th>RSSI</th>
+                            <th>LQI</th>
+                            <th>Packet Data</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+            <div class="virtual-scroll-spacer" id="virtualScrollSpacer"></div>
+        </div>
+
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <span>Đang tải dữ liệu...</span>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="history.js"></script>
+    <script src="packet-analysis.js"></script>
+</body>
+</html>

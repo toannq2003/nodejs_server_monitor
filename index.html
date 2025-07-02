@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenThread Network Analyzer - EFR32MG24</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <!-- Custom CSS -->
+    <link href="styles.css" rel="stylesheet" />
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="navbar-custom">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="navbar-brand">
+                <i class="fas fa-network-wired me-2"></i>
+                OpenThread Network Analyzer - EFR32MG24
+            </div>
+            <div class="status-indicator" id="connectionStatus">
+                <i class="fas fa-circle text-success"></i>
+                <span>Connected</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <!-- CLI Section -->
+        <div class="row mb-4 p-4">
+            <div class="col-md-6">
+                <div class="card card-modern fade-in-up">
+                    <div class="card-header-modern">
+                        <h5><i class="fas fa-terminal me-2"></i>OpenThread CLI Interface</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">COM Port Selection</label>
+                            <div class="input-group">
+                                <select class="form-select" id="comPortSelect">
+                                    <option value="">Select COM Port...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Thread Command</label>
+                            <input type="text" class="form-control" id="cliCommand" 
+                                   placeholder="Enter OpenThread CLI command (e.g., state, rloc16, ping...)">
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary-modern btn-modern" id="sendCliBtn">
+                                <i class="fas fa-paper-plane me-2"></i>Execute
+                            </button>
+                            <button class="btn btn-outline-secondary btn-modern" id="clearCliBtn">
+                                <i class="fas fa-trash me-2"></i>Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card card-modern fade-in-up">
+                    <div class="card-header-modern">
+                        <h5><i class="fas fa-terminal me-2"></i>CLI Output</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="cli-terminal" id="cliResponses">
+                            <div style="color: #00ff41;">OpenThread CLI Ready...</div>
+                            <div style="color: #ffff00;">Type 'help' for available commands</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Network Devices -->
+        <div class="row mb-4 px-4">
+            <div class="col-12">
+                <div class="card card-modern fade-in-up">
+                    <div class="card-header-modern d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-microchip me-2"></i>Thread Network Topology</h5>
+                        <button class="btn btn-success-modern btn-modern btn-sm" id="refreshKitBtn">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+    <table class="table table-modern">
+                                <thead>
+                                    <tr>
+                                        <th><i class="fas fa-fingerprint me-1"></i>Device EUI-64</th>
+                                        <th><i class="fas fa-usb me-1"></i>COM Port</th>
+                                        <th><i class="fas fa-circle me-1"></i>Status</th>
+                                        <th><i class="fas fa-clock me-1"></i>Last Activity</th>
+                                        <th><i class="fas fa-chart-bar me-1"></i>Packets</th>
+                                        <th><i class="fas fa-signal me-1"></i>Signal</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kitTableBody">
+                                    <!-- Dynamic content -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    <!-- Packet Capture với Virtual Scroll và Filters -->
+    <div class="row px-4 pb-4">
+      <div class="col-12">
+        <div class="card card-modern fade-in-up">
+          <div
+            class="card-header-modern d-flex justify-content-between align-items-center"
+          >
+            <h5><i class="fas fa-list me-2"></i>Packet Capture</h5>
+            <div class="d-flex gap-2">
+              <button
+                class="btn btn-success-modern btn-modern btn-sm"
+                id="refreshBtn"
+              >
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+              </button>
+              <button
+                class="btn btn-warning-modern btn-modern btn-sm"
+                id="clearBtn"
+              >
+                <i class="fas fa-trash me-1"></i>Clear
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <!-- Filter Controls -->
+            <div class="filter-controls">
+              <div class="filter-row">
+                <div class="filter-group">
+                  <label>Packet Type</label>
+                  <select class="filter-select" id="typeFilter">
+                    <option value="">All Types</option>
+                    <option value="TX">TX Only</option>
+                    <option value="RX">RX Only</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Kit Unique</label>
+                  <select class="filter-select" id="kitFilter">
+                    <option value="">All Kits</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>COM Port</label>
+                  <select class="filter-select" id="comFilter">
+                    <option value="">All Ports</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Search Data</label>
+                  <input
+                    type="text"
+                    class="filter-input"
+                    id="dataFilter"
+                    placeholder="Search in packet data..."
+                  />
+                </div>
+                <div class="filter-stats" id="filterStats">
+                  Showing 0 of 0 packets
+                </div>
+              </div>
+            </div>
+
+            <!-- Virtual Scroll Table -->
+            <div class="virtual-scroll-container" id="virtualScrollContainer">
+              <!-- Header Row -->
+              <div
+                style="
+                  position: sticky;
+                  top: 0;
+                  z-index: 10;
+                  background: linear-gradient(135deg, #343a40, #495057);
+                  color: white;
+                  display: flex;
+                  font-weight: 600;
+                  padding: 12px 0;
+                  border-bottom: 2px solid #007bff;
+                "
+              >
+                <div class="col" style="width: 8%; color: white">Type</div>
+                <div class="col" style="width: 15%; color: white">Time</div>
+                <div class="col" style="width: 7%; color: white">Length</div>
+                <div class="col" style="width: 10%; color: white">Kit ID</div>
+                <div class="col" style="width: 8%; color: white">COM Port</div>
+                <div class="col" style="width: 8%; color: white">Status</div>
+                <div class="col" style="width: 5%; color: white">ACK</div>
+                <div class="col" style="width: 6%; color: white">Channel</div>
+                <div class="col" style="width: 6%; color: white">CRC</div>
+                <div class="col" style="width: 6%; color: white">RSSI</div>
+                <div class="col" style="width: 5%; color: white">LQI</div>
+                <div class="col" style="width: 11%; color: white">
+                  Packet Data
+                </div>
+              </div>
+
+              <!-- Virtual Scroll Content -->
+              <div class="virtual-scroll-content" id="virtualScrollContent">
+                <div class="virtual-scroll-viewport" id="virtualScrollViewport">
+                  <!-- Dynamic rows will be rendered here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

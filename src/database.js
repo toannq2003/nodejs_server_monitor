@@ -1,5 +1,7 @@
 const mysql = require('mysql2/promise');
 const dotenv = require('dotenv');
+// Thêm vào database.js
+const PacketAnalyzer = require('./packet-analyzer');
 
 dotenv.config();
 
@@ -193,6 +195,33 @@ async function updateKitStatus(comPort, status) {
     );
 }
 
+// Thêm vào database.js
+async function getFilterOptions() {
+    const pool = await poolPromise;
+    
+    try {
+        // Lấy danh sách kitUnique
+        const [kitUniqueRows] = await pool.query(
+            'SELECT DISTINCT kitUnique FROM v_packet_data WHERE kitUnique IS NOT NULL AND kitUnique != "" ORDER BY kitUnique'
+        );
+        
+        // Lấy danh sách comPort
+        const [comPortRows] = await pool.query(
+            'SELECT DISTINCT comPort FROM v_packet_data WHERE comPort IS NOT NULL AND comPort != "" ORDER BY comPort'
+        );
+        
+        return {
+            success: true,
+            kitUniques: kitUniqueRows.map(row => row.kitUnique),
+            comPorts: comPortRows.map(row => row.comPort)
+        };
+    } catch (error) {
+        console.error('Lỗi khi lấy filter options:', error);
+        throw error;
+    }
+}
+
+
 // Thêm function lấy dữ liệu với filter
 async function getFilteredPacketData(filters = {}) {
     const pool = await poolPromise;
@@ -336,6 +365,130 @@ console.log('Is Number?', rxStats[0].avgRssi instanceof Number);
     }
 }
 
+
+// Thêm vào database.js
+async function getHistoryData(requestData) {
+    const { pageSize = 50, direction = 'next', filters = {}, afterId, beforeId } = requestData;
+    
+    const pool = await poolPromise;
+    let query = 'SELECT * FROM v_packet_data WHERE 1=1';
+    const params = [];
+    
+    // Apply filters
+    if (filters.type) {
+        query += ' AND type = ?';
+        params.push(filters.type);
+    }
+    
+    if (filters.kitUnique) {
+        query += ' AND kitUnique LIKE ?';
+        params.push(`%${filters.kitUnique}%`);
+    }
+    
+    if (filters.comPort) {
+        query += ' AND comPort LIKE ?';
+        params.push(`%${filters.comPort}%`);
+    }
+    
+    if (filters.packetData) {
+        query += ' AND packetData LIKE ?';
+        params.push(`%${filters.packetData}%`);
+    }
+    
+    // Cursor pagination
+    if (direction === 'next' && afterId) {
+        query += ' AND id < ?';
+        params.push(afterId);
+    } else if (direction === 'prev' && beforeId) {
+        query += ' AND id > ?';
+        params.push(beforeId);
+    }
+    
+    // Order and limit
+    if (direction === 'prev') {
+        query += ' ORDER BY id ASC LIMIT ?';
+    } else {
+        query += ' ORDER BY id DESC LIMIT ?';
+    }
+    params.push(pageSize);
+    
+    // THAY ĐỔI: Sử dụng query() thay vì execute()
+    const [rows] = await pool.query(query, params);
+    
+    // If previous direction, reverse the array
+    if (direction === 'prev') {
+        rows.reverse();
+    }
+    
+    // Get total count for pagination info
+    let countQuery = 'SELECT COUNT(*) as total FROM v_packet_data WHERE 1=1';
+    const countParams = [];
+    
+    if (filters.type) {
+        countQuery += ' AND type = ?';
+        countParams.push(filters.type);
+    }
+    
+    if (filters.kitUnique) {
+        countQuery += ' AND kitUnique LIKE ?';
+        countParams.push(`%${filters.kitUnique}%`);
+    }
+    
+    if (filters.comPort) {
+        countQuery += ' AND comPort LIKE ?';
+        countParams.push(`%${filters.comPort}%`);
+    }
+    
+    if (filters.packetData) {
+        countQuery += ' AND packetData LIKE ?';
+        countParams.push(`%${filters.packetData}%`);
+    }
+    
+    // THAY ĐỔI: Sử dụng query() cho count query
+    const [countResult] = await pool.query(countQuery, countParams);
+    const totalRecords = countResult[0].total;
+    
+    return {
+        success: true,
+        data: rows,
+        totalRecords: totalRecords
+    };
+}
+
+
+const analyzer = new PacketAnalyzer();
+
+async function analyzePacketById(packetId) {
+    const pool = await poolPromise;
+    
+    try {
+        // Lấy thông tin packet từ database
+        const [packetRows] = await pool.execute(
+            'SELECT * FROM v_packet_data WHERE id = ?',
+            [packetId]
+        );
+        
+        if (packetRows.length === 0) {
+            throw new Error('Packet not found');
+        }
+        
+        const packet = packetRows[0];
+        
+        // Phân tích packet real-time (không lưu kết quả)
+        const analysisResult = analyzer.analyzePacket(packet.packetData, packet.channel);
+        
+        return {
+            success: true,
+            packet: packet,
+            analysis: analysisResult
+        };
+        
+    } catch (error) {
+        console.error('Lỗi khi phân tích packet:', error);
+        throw error;
+    }
+}
+
 // Cập nhật module.exports
 module.exports = {
     savePacketData,
@@ -344,7 +497,11 @@ module.exports = {
     getAllKits,
     updateKitStatus,
     updateOrInsertKit,
-    getKitStatistics // Thêm function mới
+    getKitStatistics,
+    getHistoryData,
+    getFilterOptions,
+    analyzePacketById // Thêm function mới
 };
+
 
 

@@ -5,7 +5,9 @@ const path = require('path');
 const dotenv = require('dotenv');
 const { monitorPorts, sendCliCommand, getConnectedPorts } = require('./serial');
 // Thêm import
-const { getAllPacketData, getAllKits, getFilteredPacketData, getKitStatistics } = require('./database');
+const { getAllPacketData, getAllKits, getFilteredPacketData, getKitStatistics, getHistoryData, getFilterOptions } = require('./database');
+// Thêm import
+const { analyzePacketById } = require('./database');
 
 dotenv.config();
 
@@ -18,6 +20,11 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+// Thêm route cho trang history
+app.get('/history', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/history.html'));
 });
 
 io.on('connection', socket => {
@@ -110,6 +117,44 @@ socket.on('requestKitStats', async (kitUnique) => {
         socket.emit('kitStatsError', error.message);
     }
 });
+
+
+
+// Thêm socket handler cho history data với cursor pagination
+socket.on('requestHistoryData', async (requestData) => {
+    try {
+        const result = await getHistoryData(requestData);
+        socket.emit('historyData', result);
+    } catch (error) {
+        console.error('Lỗi khi lấy dữ liệu history:', error);
+        socket.emit('historyError', error.message);
+    }
+});
+
+// Thêm handler mới
+socket.on('requestFilterOptions', async () => {
+    try {
+        const result = await getFilterOptions();
+        socket.emit('filterOptions', result);
+    } catch (error) {
+        console.error('Lỗi khi lấy filter options:', error);
+        socket.emit('filterOptionsError', error.message);
+    }
+});
+
+socket.on('requestPacketAnalysis', async (packetId) => {
+    try {
+        console.log(`Analyzing packet ${packetId} - Real-time analysis`);
+        const result = await analyzePacketById(packetId);
+        socket.emit('packetAnalysis', result);
+        console.log(`Analyzing packet result: ${result}`);
+    } catch (error) {
+        console.error('Lỗi khi phân tích packet:', error);
+        socket.emit('packetAnalysisError', error.message);
+    }
+});
+
+
 
 });
 

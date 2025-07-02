@@ -1,0 +1,411 @@
+/* Network Analyzer Event Detail Style */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+}
+
+.modal-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95%;
+    max-width: 1400px;
+    height: 90%;
+    background: #ffffff;
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: #f0f0f0;
+    color: #333;
+    border-bottom: 1px solid #ccc;
+    font-size: 12px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #666;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-btn:hover {
+    background: #e0e0e0;
+}
+
+.modal-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Packet Info */
+.packet-info {
+    padding: 6px 10px;
+    background: #f8f8f8;
+    border-bottom: 1px solid #ddd;
+    font-size: 10px;
+}
+
+.packet-info h3 {
+    margin: 0 0 4px 0;
+    color: #333;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 4px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 1px 4px;
+    background: white;
+    border: 1px solid #ddd;
+    font-size: 9px;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.info-value {
+    color: #000;
+    font-family: 'Courier New', monospace;
+}
+
+/* Analysis Content */
+.analysis-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 0;
+}
+
+/* Event Detail - chính xác theo Network Analyzer */
+.event-detail {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ccc;
+    background: white;
+}
+
+.event-detail h3 {
+    margin: 0;
+    padding: 4px 6px;
+    background: #e8e8e8;
+    color: #333;
+    font-size: 10px;
+    font-weight: 600;
+    border-bottom: 1px solid #ccc;
+}
+
+.detail-content {
+    flex: 1;
+    overflow-y: auto;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 10px;
+    background: white;
+    padding: 2px;
+}
+
+/* Layer - chính xác theo Network Analyzer */
+.layer {
+    margin-bottom: 2px;
+}
+
+.layer-header {
+    padding: 1px 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    background: #f8f8f8;
+    font-size: 10px;
+    min-height: 14px;
+    font-weight: 600;
+    color: #0066cc;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.layer-header:hover {
+    background: #f0f0f0;
+}
+
+.layer-header.expanded {
+    background: #e0e8f0;
+}
+
+.layer-toggle {
+    width: 10px;
+    height: 10px;
+    margin-right: 2px;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-family: monospace;
+}
+
+.layer-name {
+    font-weight: 600;
+    color: #0066cc;
+}
+
+.layer-content {
+    display: none;
+    background: white;
+    padding-left: 12px;
+}
+
+.layer-content.expanded {
+    display: block;
+}
+
+/* Field Items - chính xác theo Network Analyzer */
+.field-item {
+    padding: 0px 2px;
+    display: flex;
+    align-items: flex-start;
+    font-size: 10px;
+    min-height: 12px;
+    line-height: 1.2;
+    margin-bottom: 1px;
+}
+
+.field-item:hover {
+    background: #f0f8ff;
+}
+
+.field-item.expandable {
+    cursor: pointer;
+}
+
+.field-toggle {
+    width: 10px;
+    height: 10px;
+    margin-right: 2px;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    cursor: pointer;
+    font-family: monospace;
+}
+
+.field-name {
+    font-weight: 500;
+    color: #333;
+    margin-right: 6px;
+    min-width: 100px;
+    flex-shrink: 0;
+}
+
+.field-value {
+    color: #0066cc;
+    font-family: 'Courier New', monospace;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.field-description {
+    color: #666;
+    flex: 1;
+}
+
+/* Subfields - chính xác theo Network Analyzer */
+.subfield-item {
+    padding: 0px 2px;
+    padding-left: 20px;
+    display: flex;
+    align-items: flex-start;
+    font-size: 9px;
+    min-height: 11px;
+    line-height: 1.1;
+    margin-bottom: 1px;
+}
+
+.subfield-item:hover {
+    background: #f0f8ff;
+}
+
+.subfield-name {
+    color: #555;
+    margin-right: 6px;
+    min-width: 80px;
+    flex-shrink: 0;
+    font-weight: 500;
+}
+
+.subfield-value {
+    color: #0066cc;
+    font-family: 'Courier New', monospace;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.subfield-description {
+    color: #888;
+    flex: 1;
+}
+
+.subfield-binary {
+    color: #666;
+    font-family: 'Courier New', monospace;
+    font-size: 8px;
+    margin-left: 6px;
+    flex-shrink: 0;
+}
+
+/* Hex Dump - chính xác theo Network Analyzer */
+.hex-dump {
+    display: flex;
+    flex-direction: column;
+    background: white;
+}
+
+.hex-dump h3 {
+    margin: 0;
+    padding: 4px 6px;
+    background: #e8e8e8;
+    color: #333;
+    font-size: 10px;
+    font-weight: 600;
+    border-bottom: 1px solid #ccc;
+}
+
+.hex-content {
+    flex: 1;
+    padding: 4px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    line-height: 1.2;
+    background: white;
+}
+
+.hex-line {
+    display: flex;
+    margin-bottom: 1px;
+    padding: 0px;
+}
+
+.hex-offset {
+    width: 40px;
+    color: #666;
+    margin-right: 6px;
+    font-weight: 600;
+}
+
+.hex-bytes {
+    flex: 1;
+    margin-right: 6px;
+}
+
+.hex-ascii {
+    width: 80px;
+    color: #333;
+    background: #f8f8f8;
+    padding: 0 2px;
+}
+
+.hex-byte {
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+    margin-right: 1px;
+    cursor: pointer;
+    padding: 0px;
+}
+
+.hex-byte:hover {
+    background: #e0e0e0;
+}
+
+.hex-byte.highlighted {
+    background: #0066cc;
+    color: white;
+}
+
+/* Loading States */
+.loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60px;
+    color: #666;
+    font-size: 10px;
+}
+
+.error-message {
+    color: #dc3545;
+    background: #f8d7da;
+    padding: 4px;
+    border-radius: 2px;
+    margin: 4px;
+    font-size: 10px;
+}
+
+/* Clickable packet data */
+.packet-data {
+    cursor: pointer;
+    transition: background-color 0.2s;
+    padding: 1px 2px;
+    border-radius: 1px;
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+}
+
+.packet-data:hover {
+    background-color: #0066cc !important;
+    color: white !important;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .analysis-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr 1fr;
+    }
+    
+    .event-detail {
+        border-right: none;
+        border-bottom: 1px solid #ccc;
+    }
+}

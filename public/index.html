@@ -599,6 +599,80 @@
 }
 
 
+/* Menu dropdown */
+.nav-menu {
+    position: relative;
+}
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-btn {
+    background: white;
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    padding: 12px 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    transition: all 0.3s ease;
+    min-width: 150px;
+}
+
+.dropdown-btn:hover {
+    background: #f8f9fa;
+    border-color: #2980b9;
+}
+
+.dropdown-arrow {
+    margin-left: auto;
+    transition: transform 0.3s ease;
+}
+
+.dropdown-btn.active .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background: white;
+    min-width: 160px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    border-radius: 8px;
+    z-index: 1000;
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.dropdown-content a {
+    color: #2c3e50;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    transition: background-color 0.3s ease;
+    font-weight: 500;
+}
+
+.dropdown-content a:hover {
+    background-color: #f8f9fa;
+    color: #3498db;
+}
+
+
+
     </style>
 </head>
 <body>
@@ -609,9 +683,15 @@
                 <i class="fas fa-network-wired me-2"></i>
                 OpenThread Network Analyzer - EFR32MG24
             </div>
-            <div class="status-indicator" id="connectionStatus">
-                <i class="fas fa-circle text-success"></i>
-                <span>Connected</span>
+            <div class="nav-menu">
+                <div class="dropdown">
+                    <button class="dropdown-btn" id="menuBtn">
+                        <span class="dropdown-arrow">▼</span>
+                    </button>
+                    <div class="dropdown-content" id="dropdownContent">
+                        <a href="#" id="historyLink">History</a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -880,7 +960,6 @@ function makeKitClickable() {
         // Socket connection handling
         socket.on('connect', () => {
             console.log('Connected to OpenThread Monitor');
-            updateConnectionStatus(true);
             socket.emit('joinRoom', 'indexRoom');
             
             setTimeout(() => {
@@ -891,19 +970,8 @@ function makeKitClickable() {
         });
 
         socket.on('disconnect', () => {
-            updateConnectionStatus(false);
         });
 
-        function updateConnectionStatus(connected) {
-            const statusEl = document.getElementById('connectionStatus');
-            if (connected) {
-                statusEl.innerHTML = '<i class="fas fa-circle text-success"></i><span>Connected</span>';
-                statusEl.classList.add('pulse');
-            } else {
-                statusEl.innerHTML = '<i class="fas fa-circle text-danger"></i><span>Disconnected</span>';
-                statusEl.classList.remove('pulse');
-            }
-        }
         
         // Error code mapping for OpenThread dựa trên Silicon Labs
         function getErrorCodeText(type, code) {
@@ -1004,6 +1072,33 @@ socket.on('comList', (ports) => {
         document.getElementById('refreshKitBtn').addEventListener('click', () => {
             socket.emit('requestKitList');
         });
+
+
+        // Menu functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const menuBtn = document.getElementById('menuBtn');
+    const dropdownContent = document.getElementById('dropdownContent');
+    const historyLink = document.getElementById('historyLink');
+
+    // Toggle dropdown
+    menuBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dropdownContent.classList.toggle('show');
+        menuBtn.classList.toggle('active');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function() {
+        dropdownContent.classList.remove('show');
+        menuBtn.classList.remove('active');
+    });
+
+    // History link
+    historyLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.location.href = '/history';
+    });
+});
         
         
         // document.getElementById('clearBtn').addEventListener('click', () => {
@@ -2949,11 +3044,91 @@ class VirtualScroll {
         this.container.addEventListener('scroll', this.onScroll.bind(this));
         this.updateViewport();
     }
+
+
+    updateFilterOptions() {
+    // Update Kit filter - CHỈ THÊM MỚI
+    const kitFilter = document.getElementById('kitFilter');
+    if (kitFilter) {
+        const currentOptions = Array.from(kitFilter.options).map(opt => opt.value);
+        const uniqueKits = [...new Set(this.data.map(p => p.kitUnique).filter(k => k))];
+        
+        uniqueKits.forEach(kit => {
+            if (!currentOptions.includes(kit)) {
+                const option = document.createElement('option');
+                option.value = kit;
+                option.textContent = kit.substring(0, 16) + '...';
+                kitFilter.appendChild(option);
+            }
+        });
+    }
+    
+    // Update COM filter - CHỈ THÊM MỚI
+    const comFilter = document.getElementById('comFilter');
+    if (comFilter) {
+        const currentOptions = Array.from(comFilter.options).map(opt => opt.value);
+        const uniqueComs = [...new Set(this.data.map(p => p.comPort).filter(c => c))];
+        
+        uniqueComs.forEach(com => {
+            if (!currentOptions.includes(com)) {
+                const option = document.createElement('option');
+                option.value = com;
+                option.textContent = com;
+                comFilter.appendChild(option);
+            }
+        });
+    }
+}
+
+      // Thêm method này vào class VirtualScroll
+addRealtimeData(newPacket) {
+    console.log("Adding realtime packet:", newPacket);
+    
+    // Thêm vào đầu data array
+    this.data.unshift(newPacket);
+
+    // Limit data size for performance
+  if (this.data.length > 1000) {
+    //500
+    this.data = this.data.slice(0, 500); //200
+  }
+
+  this.updateFilterOptions();
+    
+    // Force clear tất cả rendered rows
+    for (const [index, row] of this.renderedRows) {
+        row.remove();
+    }
+    this.renderedRows.clear();
+    
+    // Apply filters và re-render
+    this.applyFilters();
+    
+    // Auto scroll to top
+    if (this.container.scrollTop < this.rowHeight * 3) {
+        this.container.scrollTop = 0;
+    }
+}
+
+          // Thêm method này vào class VirtualScroll
+addfilersData() {
+    console.log("Adding filters packet");
+    
+    // Force clear tất cả rendered rows
+    for (const [index, row] of this.renderedRows) {
+        row.remove();
+    }
+    this.renderedRows.clear();
+    
+    // Apply filters và re-render
+    this.applyFilters();
+}
     
     setData(data) {
         this.data = data;
         this.applyFilters();
     }
+    
     
     applyFilters() {
         const typeFilter = document.getElementById('typeFilter').value;
@@ -3129,48 +3304,101 @@ function updatePacketTable(data) {
     }
 }
 
+// function addPacketToTable(packet) {
+//     if (!packet) return;
+
+//     console.log(`1234`);
+    
+//     allPacketData.unshift(packet);
+    
+//     // Limit data size for performance
+//     if (allPacketData.length > 1000) {  //500
+//         allPacketData = allPacketData.slice(0, 500); //200
+//     }
+    
+//     updateFilterOptions();
+//     if (virtualScroll) {
+//         virtualScroll.container.scrollTop = 0;
+//         virtualScroll.setData(allPacketData);
+//     }
+// }
+
 function addPacketToTable(packet) {
-    if (!packet) return;
+  if (!packet) return;
 
-    console.log(`1234`);
-    
-    allPacketData.unshift(packet);
-    
-    // Limit data size for performance
-    if (allPacketData.length > 1000) {  //500
-        allPacketData = allPacketData.slice(0, 500); //200
-    }
-    
-    updateFilterOptions();
-    if (virtualScroll) {
-        virtualScroll.setData(allPacketData);
-    }
+  console.log(`1234`);
+
+
+  //updateFilterOptions();
+  if (virtualScroll) {
+    virtualScroll.addRealtimeData(packet);
+  }
 }
 
-// Update filter options
+
+
+
+
+
+// // Update filter options
+// function updateFilterOptions() {
+//     // Update Kit filter
+//     const kitFilter = document.getElementById('kitFilter');
+//     const uniqueKits = [...new Set(allPacketData.map(p => p.kitUnique).filter(k => k))];
+//     kitFilter.innerHTML = '<option value="">All Kits</option>';
+//     uniqueKits.forEach(kit => {
+//         const option = document.createElement('option');
+//         option.value = kit;
+//         option.textContent = kit.substring(0, 16) + '...';
+//         kitFilter.appendChild(option);
+//     });
+    
+//     // Update COM filter
+//     const comFilter = document.getElementById('comFilter');
+//     const uniqueComs = [...new Set(allPacketData.map(p => p.comPort).filter(c => c))];
+//     comFilter.innerHTML = '<option value="">All Ports</option>';
+//     uniqueComs.forEach(com => {
+//         const option = document.createElement('option');
+//         option.value = com;
+//         option.textContent = com;
+//         comFilter.appendChild(option);
+//     });
+// }
+
 function updateFilterOptions() {
-    // Update Kit filter
+    // Update Kit filter - CHỈ THÊM MỚI
     const kitFilter = document.getElementById('kitFilter');
-    const uniqueKits = [...new Set(allPacketData.map(p => p.kitUnique).filter(k => k))];
-    kitFilter.innerHTML = '<option value="">All Kits</option>';
-    uniqueKits.forEach(kit => {
-        const option = document.createElement('option');
-        option.value = kit;
-        option.textContent = kit.substring(0, 16) + '...';
-        kitFilter.appendChild(option);
-    });
+    if (kitFilter) {
+        const currentOptions = Array.from(kitFilter.options).map(opt => opt.value);
+        const uniqueKits = [...new Set(allPacketData.map(p => p.kitUnique).filter(k => k))];
+        
+        uniqueKits.forEach(kit => {
+            if (!currentOptions.includes(kit)) {
+                const option = document.createElement('option');
+                option.value = kit;
+                option.textContent = kit.substring(0, 16) + '...';
+                kitFilter.appendChild(option);
+            }
+        });
+    }
     
-    // Update COM filter
+    // Update COM filter - CHỈ THÊM MỚI
     const comFilter = document.getElementById('comFilter');
-    const uniqueComs = [...new Set(allPacketData.map(p => p.comPort).filter(c => c))];
-    comFilter.innerHTML = '<option value="">All Ports</option>';
-    uniqueComs.forEach(com => {
-        const option = document.createElement('option');
-        option.value = com;
-        option.textContent = com;
-        comFilter.appendChild(option);
-    });
+    if (comFilter) {
+        const currentOptions = Array.from(comFilter.options).map(opt => opt.value);
+        const uniqueComs = [...new Set(allPacketData.map(p => p.comPort).filter(c => c))];
+        
+        uniqueComs.forEach(com => {
+            if (!currentOptions.includes(com)) {
+                const option = document.createElement('option');
+                option.value = com;
+                option.textContent = com;
+                comFilter.appendChild(option);
+            }
+        });
+    }
 }
+
 
 // Initialize Virtual Scroll when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
@@ -3187,20 +3415,20 @@ document.addEventListener('DOMContentLoaded', function() {
             if (virtualScroll)
             {
                 console.log(`123456`); 
-                virtualScroll.applyFilters();
+                virtualScroll.addfilersData();
             }
         });
         
         document.getElementById('kitFilter').addEventListener('change', () => {
-            if (virtualScroll) virtualScroll.applyFilters();
+            if (virtualScroll) virtualScroll.addfilersData();
         });
         
         document.getElementById('comFilter').addEventListener('change', () => {
-            if (virtualScroll) virtualScroll.applyFilters();
+            if (virtualScroll) virtualScroll.addfilersData();
         });
         
         document.getElementById('dataFilter').addEventListener('input', debounce(() => {
-            if (virtualScroll) virtualScroll.applyFilters();
+            if (virtualScroll) virtualScroll.addfilersData();
         }, 300));
     }
 });
@@ -3226,6 +3454,86 @@ document.getElementById('clearBtn').addEventListener('click', () => {
     }
     updateFilterOptions();
 });
+
+
+
+// function addPacketToTable(packet) {
+//     if (!packet) return;
+
+//     console.log(`1234`);
+    
+//     allPacketData.unshift(packet);
+    
+//     // Limit data size for performance
+//     if (allPacketData.length > 1000) {
+//         allPacketData = allPacketData.slice(0, 500);
+//     }
+    
+//     updateFilterOptions();
+//     if (virtualScroll) {
+//         // Kiểm tra xem packet mới có thỏa mãn filter hiện tại không
+//         const shouldShowNewPacket = 1;//checkPacketMatchesCurrentFilters(packet);
+        
+//         if (shouldShowNewPacket) {
+//             // Nếu đang ở đầu danh sách, giữ nguyên vị trí
+//             const isAtTop = virtualScroll.container.scrollTop === 0;
+            
+//             virtualScroll.setData(allPacketData);
+            
+//             // Nếu đang ở đầu danh sách, đảm bảo packet mới hiển thị
+//             if (isAtTop) {
+//                 console.log(`98765`);
+//                 virtualScroll.container.scrollTop = 0;
+//                 // Force render ngay lập tức
+//                 virtualScroll.updateViewport();
+//                 virtualScroll.render();
+//             }
+//         } else {
+//             // Nếu packet không match filter, chỉ cập nhật data
+//             virtualScroll.setData(allPacketData);
+//         }
+//     }
+// }
+
+
+
+// function addPacketToTable(packet) {
+//     if (!packet) return;
+
+//     console.log(`Real-time packet received:`, packet);
+    
+//     // Thêm packet mới vào đầu array
+//     allPacketData.unshift(packet);
+    
+//     // Limit data size for performance
+//     if (allPacketData.length > 1000) {
+//         allPacketData = allPacketData.slice(0, 500);
+//         console.log('Data trimmed to 500 items for performance');
+//     }
+    
+//     // Update filter options
+//     updateFilterOptions();
+    
+//     // QUAN TRỌNG: Force update virtual scroll
+//     if (virtualScroll) {
+//         // Lưu vị trí scroll hiện tại
+//         const currentScrollTop = virtualScroll.container.scrollTop;
+        
+//         // Set data mới và force update
+//         virtualScroll.setData(allPacketData);
+        
+//         // Nếu người dùng đang ở đầu danh sách (scrollTop < 100px)
+//         // thì giữ nguyên vị trí để thấy dữ liệu mới
+//         if (currentScrollTop < 100) {
+//             virtualScroll.container.scrollTop = 0;
+//         } else {
+//             // Nếu đang scroll xuống, giữ nguyên vị trí
+//             virtualScroll.container.scrollTop = currentScrollTop;
+//         }
+        
+//         console.log(`Virtual scroll updated with new real-time data`);
+//     }
+// }
 
 
 
